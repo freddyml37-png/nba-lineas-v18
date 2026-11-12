@@ -138,7 +138,7 @@ tr.sp td{background:var(--card);color:var(--mut);font-size:11px;text-transform:u
 <body>
 
 <h1>🏀 NBA Líneas</h1>
-<div class="toptabs"><button class="toptab on" data-v="l"><span class="ti">📋</span>Líneas</button><button class="toptab" data-v="e"><span class="ti">⚡</span>Eficiencia jugador</button><button class="toptab" data-v="u"><span class="ti">👥</span>Usage equipo</button><button class="toptab" data-v="p"><span class="ti">🏟️</span>Partidos</button><button class="toptab" data-v="a"><span class="ti">🚑</span>Jugador ausente</button><button class="toptab" data-v="m"><span class="ti">⚔️</span>Match</button></div>
+<div class="toptabs"><button class="toptab on" data-v="l"><span class="ti">📋</span>Líneas</button><button class="toptab" data-v="e"><span class="ti">⚡</span>Eficiencia jugador</button><button class="toptab" data-v="u"><span class="ti">👥</span>Usage equipo</button><button class="toptab" data-v="p"><span class="ti">🏟️</span>Partidos</button><button class="toptab" data-v="a"><span class="ti">🚑</span>Jugador ausente</button><button class="toptab" data-v="m"><span class="ti">⚔️</span>Match</button><button class="toptab" data-v="r"><span class="ti">📈</span>Registro</button></div>
 <div id="viewLineas">
 
 <!-- ========== FORMULARIO ========== -->
@@ -185,7 +185,7 @@ tr.sp td{background:var(--card);color:var(--mut);font-size:11px;text-transform:u
       <div class="foot" style="text-align:left">Se guarda solo en este dispositivo.</div>
     </div>
   </details>
-  <div class="foot">v18</div>
+  <div class="foot">v19</div>
 </div>
 
 <div id="status"></div>
@@ -268,6 +268,7 @@ tr.sp td{background:var(--card);color:var(--mut);font-size:11px;text-transform:u
  <div id="auOut"></div>
 </div>
 
+<div id="viewReg" class="hidden"></div>
 <div id="viewMatch" class="hidden">
  <div class="card">
   <div class="row r2"><div><label for="mA">Equipo A</label><select id="mA"></select></div><div><label for="mB">Equipo B</label><select id="mB"></select></div></div>
@@ -1138,106 +1139,155 @@ async function analizarMatch(){const A=$("mA").value,B=$("mB").value,end=parseIn
 
 /* ===== PERSISTENCIA: recuerda lo que estabas viendo aunque el celular descarte la página ===== */
 var RESTAURANDO=false;
-/* ===== v18: 3PM, desviación/probabilidad, cuotas/EV, minutos auto, pace/def reales, registro ===== */
+/* ===== v19: V18 + V19 EN VIVO + pestaña Registro + persistencia ===== */
 (function(){
-const KS=["PTS","REB","AST","3PM"],NM={PTS:"Puntos",REB:"Rebotes",AST:"Asist.","3PM":"Triples"},LK="nba_v18_log";
+const KS=["PTS","REB","AST","3PM"],NM={PTS:"Puntos",REB:"Rebotes",AST:"Asist.","3PM":"Triples"},L18="nba_v18_log",L19="nba_v19_log",AK="nba_v19_aus";
 const LS=k=>{try{return JSON.parse(localStorage.getItem(k)||"null");}catch(e){return null;}},SS=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}};
 const PHI=z=>{const t=1/(1+0.2316419*Math.abs(z)),p=0.3989423*Math.exp(-z*z/2)*t*(0.3193815+t*(-0.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));return z>0?1-p:p;};
 const sd0=a=>{if(a.length<2)return 0;const m=a.reduce((s,x)=>s+x,0)/a.length;return Math.sqrt(a.reduce((s,x)=>s+(x-m)**2,0)/(a.length-1));};
-const val=(g,k)=>k==="3PM"?g.tpm:g[k],pct=x=>x==null?"–":Math.round(x*100)+"%",$$=id=>document.getElementById(id);
+const val=(g,k)=>k==="3PM"?g.tpm:g[k],pct=x=>x==null?"–":Math.round(x*100)+"%",$$=id=>document.getElementById(id),num=x=>{const v=parseFloat(String(x).replace(",","."));return isNaN(v)?0:v;};
 const imp=(a,b)=>{if(a>1&&b>1){const x=1/a,y=1/b;return x/(x+y);}return a>1?1/a:null;};
-let S={key:"",real:null,min:null,adj:0,co:{},cu:{}};
+const fresh=()=>({key:"",real:null,min:null,adjMan:null,adjAuto:0,off:{},co:{},cu:{},ln:{},act:{},played:null,per:null,clk:"",remMan:null,live:null});
+let S=Object.assign(fresh(),LS("nba_v19_S18")||{}),T=Object.assign(fresh(),LS("nba_v19_S19")||{});
+const G=id=>id==="v19"?T:S,keep=()=>{SS("nba_v19_S18",S);SS("nba_v19_S19",T);};
+
+/* --- caché persistente de ESPN (gamelog 3 h, calendario 1 h) y boxscores de Ausente --- */
+(function(){const gj=window.getJSON,TTL=[[/gamelog/,108e5],[/\/schedule/,36e5]];
+ window.getJSON=async function(url,p,slim){const rule=TTL.find(x=>x[0].test(url));if(!rule||window.__nocache)return gj.apply(this,arguments);
+  const u=new URL(url);if(p)Object.entries(p).forEach(([k,v])=>u.searchParams.set(k,v));const key="nba_gc_"+u.toString(),c=LS(key);
+  if(c&&Date.now()-c.t<rule[1])return c.d;const d=await gj.apply(this,arguments),w=()=>localStorage.setItem(key,JSON.stringify({t:Date.now(),d}));
+  try{w();}catch(e){try{Object.keys(localStorage).filter(k=>k.indexOf("nba_gc_")===0).sort((a,b)=>(LS(a)||{t:0}).t-(LS(b)||{t:0})).slice(0,6).forEach(k=>localStorage.removeItem(k));w();}catch(_){}}return d;};})();
+try{Object.assign(ABC,LS("nba_abc_v1")||{});}catch(e){}
+
+/* --- ausentes: guarda cada consulta de la pestaña Jugador ausente --- */
+function regAus(){try{const A=AUS;if(!A||!A.matches)return;const rows={};
+ A.matches.forEach(m=>m.rows.forEach(x=>{const o=rows[x.Jugador]||(rows[x.Jugador]={dp:0,dm:0,pc:0,n:0});o.dp+=x.dp;o.dm+=x.dm;o.pc+=x.pc;o.n++;}));
+ Object.keys(rows).forEach(k=>{const o=rows[k];o.dp/=o.n;o.dm/=o.n;o.pc/=o.n;});const M=LS(AK)||{};M[A.player]={t:Date.now(),n:A.matches.length,rows};SS(AK,M);SS("nba_abc_v1",ABC);}catch(e){}}
+function ausList(R){const M=LS(AK)||{},me=normalize(R.nom),o=[];Object.keys(M).forEach(a=>{const e=M[a];if(!e.n)return;const k=Object.keys(e.rows).find(x=>normalize(x)===me);if(!k)return;
+ const q=e.rows[k];o.push({a,t:e.t,n:e.n,dm:q.dm,adj:q.pc>0?Math.max(-30,Math.min(40,q.dp/q.pc*100)):0});});return o;}
+const onA=(s,x)=>s.off[x.a]===1?false:s.off[x.a]===0?true:Date.now()-x.t<1296e5;
 
 function minAuto(pl,fb){const m=pl.filter(g=>!g.pre&&g.MIN>0).sort((a,b)=>b.fe.localeCompare(a.fe)).slice(0,8).map(g=>g.MIN);
- if(m.length<3)return{v:fb,n:m.length,out:0,ok:false};
- const s=m.slice().sort((a,b)=>a-b),md=s[Math.floor(s.length/2)],k=m.filter(x=>x>=0.75*md);
+ if(m.length<3)return{v:fb,n:m.length,out:0,ok:false};const s=m.slice().sort((a,b)=>a-b),md=s[Math.floor(s.length/2)],k=m.filter(x=>x>=0.75*md);
  return{v:Math.round(k.reduce((a,b)=>a+b,0)/k.length*10)/10,n:k.length,out:m.length-k.length,ok:true};}
 
-function calc(R){const V=window.__V18,pl=V.pl,st=R.st,mins=S.min,adj=(S.adj||0)/100,re=S.real;
- const pT=re?re.pT:R.pT,pR=re?re.pR:R.pR,dR=re?re.dR:R.dR,bs=re?re.bs:R.bs;
- const base=proyectar(mins,st,pT,pR,dR,R.dias,bs),ff=factorDesc(R.dias)[0],fp=((pT+pR)/2)/bs.bp,fd=dR/bs.bd;
+function liveCtx(s,mins){const per=parseInt(s.per);if(!per)return null;const c=String(s.clk||""),m=/^(\d+):(\d+)/.exec(c),cm=m?(+m[1])+(+m[2])/60:(parseFloat(c)||0)/60,
+ remG=per<=4?(4-per)*12+cm:cm,el=per<=4?(48-remG)/48:1,pl=Math.max(0,num(s.played)),diff=s.live&&s.live.diff!=null?s.live.diff:null,w=Math.min(0.6,el);
+ const tot=el>0.12?w*(pl/el)+(1-w)*mins:mins,bl=per>=3&&diff!=null&&diff>=(per>=4?18:25)?0.6:1;let rem=Math.min(remG,Math.max(0,tot-pl))*bl;if(s.remMan!=null&&s.remMan>=0)rem=s.remMan;
+ return{per,remG,el,pl,rem,tot:pl+rem,wl:pl/(pl+20),bl,diff};}
+
+function calc(R,s,id,lv){const V=window.__V18,pl=V.pl,st=R.st,mins=s.min,adj=(s.adjMan!=null?s.adjMan:s.adjAuto||0)/100,re=s.real,l19=id==="v19";
+ const pT=re?re.pT:R.pT,pR=re?re.pR:R.pR,dR=re?re.dR:R.dR,bs=re?re.bs:R.bs,base=proyectar(mins,st,pT,pR,dR,R.dias,bs),ff=factorDesc(R.dias)[0],fp=((pT+pR)/2)/bs.bp,fd=dR/bs.bd;
  let m3=0,a3=0,tm=0;pl.forEach(g=>{const p=pFG(g["3PT"]);m3+=p[0];a3+=p[1];tm+=g.MIN;});
- const pc3=(m3+0.36*60)/(a3+60),pa=tm?a3/tm:0.2;
- const mu={PTS:base.pts*(1+adj),REB:base.reb*(1+adj/2),AST:base.ast*(1+adj),"3PM":mins*pa*fp*ff*(1+adj)*pc3*Math.min(1.08,Math.max(0.92,fd))};
- const esc2=Math.min(1.25,Math.max(0.8,mins/(st.min_prom||mins))),FL={PTS:4,REB:1.6,AST:1.4,"3PM":0.9},out={};
- KS.forEach(k=>{const v=pl.map(g=>val(g,k)).filter(x=>x!=null&&!isNaN(x)),sr=Math.max(FL[k],sd0(v)*Math.sqrt(esc2)),sd=Math.sqrt(sr*sr+(0.06*mu[k])**2),L=R.lineas[k]||null;
-  const hit=L&&v.length?v.filter(x=>x>=L).length/v.length:null,po=L?1-PHI((Math.ceil(L)-0.5-mu[k])/sd):null,far=L?Math.abs(mu[k]-L)/L>0.15:false,ext=hit!=null&&(hit>0.85||hit<0.15);
-  const f=[];if(L){if(v.length<10)f.push("muestra chica ("+v.length+")");if(R.usoAnt)f.push("incluye temp. anterior");
-   if(hit!=null&&Math.abs(po-hit)>0.25)f.push("modelo "+pct(po)+" vs historial "+pct(hit)+": discrepan");
-   if(ext)f.push("historial extremo: ¿cambió el rol o la línea no es la de la casa?");
-   if(far)f.push("proyección a "+Math.round(Math.abs(mu[k]-L)/L*100)+"% de la línea: revisa primero tus minutos y ausentes");}
-  out[k]={mu:mu[k],sd,L,po,hit,n:v.length,f,crit:v.length<10||far||ext};});
- return{out,pa3:pa*mins,pc3,base};}
+ const pc3=(m3+0.36*60)/(a3+60),pa=tm?a3/tm:0.2,mu={PTS:base.pts*(1+adj),REB:base.reb*(1+adj/2),AST:base.ast*(1+adj),"3PM":mins*pa*fp*ff*(1+adj)*pc3*Math.min(1.08,Math.max(0.92,fd))};
+ const e2=Math.min(1.25,Math.max(0.8,mins/(st.min_prom||mins))),FL={PTS:4,REB:1.6,AST:1.4,"3PM":0.9},out={};
+ KS.forEach(k=>{const v=pl.map(g=>val(g,k)).filter(x=>x!=null&&!isNaN(x)),sr=Math.max(FL[k],sd0(v)*Math.sqrt(e2)),sd=Math.sqrt(sr*sr+(0.06*mu[k])**2),L=l19?(s.ln[k]>0?s.ln[k]:null):(R.lineas[k]||null);
+  if(l19&&lv){const a=num(s.act[k]),rt=(1-lv.wl)*mu[k]/mins+lv.wl*(lv.pl>3?a/lv.pl:mu[k]/mins),mr=rt*lv.rem,sdr=Math.max(0.3,Math.sqrt((sd*Math.sqrt(lv.rem/mins))**2+(0.12*mr)**2)),t=L?Math.ceil(L):0;
+   out[k]={mu:a+mr,sd:sdr,L,po:L?(a>=t?1:1-PHI((t-a-0.5-mr)/sdr)):null,hit:null,n:v.length,f:[],crit:false,act:a};return;}
+  const hit=L&&v.length?v.filter(x=>x>=L).length/v.length:null,po=L?1-PHI((Math.ceil(L)-0.5-mu[k])/sd):null,far=L?Math.abs(mu[k]-L)/L>0.15:false,ext=hit!=null&&(hit>0.85||hit<0.15),f=[];
+  if(L&&!l19){if(v.length<10)f.push("muestra chica ("+v.length+")");if(R.usoAnt)f.push("incluye temp. anterior");if(hit!=null&&Math.abs(po-hit)>0.25)f.push("modelo "+pct(po)+" vs historial "+pct(hit)+": discrepan");
+   if(ext)f.push("historial extremo: ¿cambió el rol o la línea no es la de la casa?");if(far)f.push("proyección a "+Math.round(Math.abs(mu[k]-L)/L*100)+"% de la línea: revisa primero tus minutos y ausentes");}
+  out[k]={mu:mu[k],sd,L,po,hit,n:v.length,f,crit:!l19&&(v.length<10||far||ext),act:0};});
+ return{out,pa3:pa*mins,pc3};}
 
-function sig(k,x){if(!x.L)return null;const over=x.po>=.5,pp=over?x.po:1-x.po,co=S.co[k],cu=S.cu[k],cq=over?co:cu;let ev=null,edge=null;
- if(cq>1){const ip=over?imp(co,cu):imp(cu,co);edge=pp-ip;ev=pp*cq-1;}
- const side=over?"OVER":"UNDER";
- const t=ev!=null?(ev>0.05&&edge>=0.04&&!x.crit?"✅ VALOR "+side:ev>0?"🟡 marginal "+side:"⛔ sin valor"):(pp>=0.62&&!x.crit?"🟢 lectura "+side:"⚪ neutra");
- return{pp,over,ev,edge,t};}
+function sig(k,x,s){if(!x.L||x.po==null)return null;const over=x.po>=.5,pp=over?x.po:1-x.po,co=s.co[k],cu=s.cu[k],cq=over?co:cu;let ev=null,edge=null;
+ if(cq>1){const ip=over?imp(co,cu):imp(cu,co);edge=pp-ip;ev=pp*cq-1;}const sd=over?"OVER":"UNDER";
+ return{ev,edge,t:ev!=null?(ev>0.05&&edge>=0.04&&!x.crit?"✅ VALOR "+sd:ev>0?"🟡 marginal "+sd:"⛔ sin valor"):(pp>=0.62&&!x.crit?"🟢 lectura "+sd:"⚪ neutra")};}
 
-function guardar(R,c){const V=window.__V18;if(!R.fecha||!V)return;const L=LS(LK)||[],id=V.j.id+"|"+R.fecha+"|"+R.rival,e=L.find(x=>x.id===id);if(e&&e.res)return;
- const s={};KS.forEach(k=>{const x=c.out[k];s[k]={mu:+x.mu.toFixed(2),sd:+x.sd.toFixed(2),L:x.L,po:x.po==null?null:+x.po.toFixed(3)};});
- const n={id,pid:V.j.id,nom:R.nom,rival:R.rival,fecha:R.fecha,temp:R.temp,min:S.min,ts:Date.now(),s};
- if(e)Object.assign(e,n);else L.push(n);SS(LK,L.slice(-400));}
+function guardar(R,c,id,fecha,lv){const V=window.__V18;if(!fecha||!V)return;const key=id==="v19"?L19:L18,L=LS(key)||[],ik=V.j.id+"|"+fecha+"|"+R.rival,e=L.find(x=>x.id===ik);if(e&&e.res)return;const s={};
+ KS.forEach(k=>{const x=c.out[k];s[k]={mu:+x.mu.toFixed(2),sd:+x.sd.toFixed(2),L:x.L,po:x.po==null?null:+x.po.toFixed(3)};});
+ const n={id:ik,pid:V.j.id,nom:R.nom,rival:R.rival,fecha,temp:R.temp,min:G(id).min,ts:Date.now(),s};if(lv)n.lv={per:lv.per,pl:+lv.pl.toFixed(1),rem:+lv.rem.toFixed(1)};
+ if(e)Object.assign(e,n);else L.push(n);SS(key,L.slice(-400));}
 
-function calibHtml(){const A=LS(LK)||[],L=A.filter(e=>e.res),pend=A.length-L.length;
- let h='<div class="foot" style="text-align:left">'+A.length+' proyecciones guardadas · '+L.length+' con resultado · '+pend+' pendientes (se guardan al calcular con fecha del próximo partido).</div>';
- if(!L.length)return h;
+const inp=(i,v,w)=>'<input id="'+i+'" type="number" inputmode="decimal" step="0.01" value="'+(v==null||v===0&&false?"":v)+'" style="width:'+(w||70)+'px;padding:6px 8px;font-size:14px">';
+
+function card(R,id){const V=window.__V18,l19=id==="v19",au=minAuto(V.pl,R.min),key=V.j.id+"|"+R.rival+"|"+(l19?"":R.fecha);let s=G(id);
+ if(s.key!==key){s=fresh();s.key=key;s.min=au.v;if(l19)s.ln=Object.assign({},R.lineas);if(l19)T=s;else S=s;}
+ const AL=ausList(R);s.adjAuto=Math.min(40,AL.reduce((a,x)=>a+(onA(s,x)?x.adj:0),0));const adjV=s.adjMan!=null?s.adjMan:s.adjAuto,lv=l19&&s.per?liveCtx(s,s.min):null,c=calc(R,s,id,lv);
+ guardar(R,c,id,l19?(s.live&&s.live.fecha):R.fecha,lv);keep();
+ const tiles=KS.map(k=>{const x=c.out[k];return'<div class="stat"><div class="k">'+NM[k]+(lv?' final':'')+'</div><div class="v">'+r(x.mu,1)+'</div><div class="s">± '+r(x.sd,1)+(lv?' · ya '+x.act:' · 80%: '+Math.max(0,Math.round(x.mu-1.28*x.sd))+'–'+Math.round(x.mu+1.28*x.sd))+(k==="3PM"&&!lv?' · '+r(c.pa3,1)+' int. al '+r(c.pc3*100,0)+'%':'')+'</div></div>';}).join("");
+ const act=l19?KS:KS.filter(k=>c.out[k].L);let rows="",flags="";
+ act.forEach(k=>{const x=c.out[k],q=sig(k,x,s),o=inp(id+"o_"+k,s.co[k]),u=inp(id+"u_"+k,s.cu[k]);
+  rows+='<tr><td class="l"><b>'+k+'</b></td>'+(l19?'<td>'+inp(id+"a_"+k,s.act[k],54)+'</td><td>'+inp(id+"l_"+k,s.ln[k],60)+'</td>':'<td>'+x.L+'</td>')+'<td>'+r(x.mu,1)+'±'+r(x.sd,1)+'</td><td class="'+(x.po==null?'':x.po>=.5?'ok':'no')+'">'+(x.po==null?'–':pct(x.po)+' / '+pct(1-x.po))+'</td>'+(l19?'':'<td>'+pct(x.hit)+'</td>')+'<td>'+o+'</td><td>'+u+'</td><td>'+(!q||q.edge==null?"–":(q.edge>=0?"+":"")+r(q.edge*100,1)+" pts")+'</td><td>'+(!q||q.ev==null?"–":(q.ev>=0?"+":"")+r(q.ev*100,1)+"%")+'</td><td class="l"><b>'+(q?q.t:"–")+'</b></td></tr>';
+  if(x.f.length)flags+='<div class="msg info" style="margin:6px 0"><b>'+k+':</b> '+x.f.map(esc).join(" · ")+'</div>';});
+ if(lv){if(lv.bl<1)flags+='<div class="msg info" style="margin:6px 0">Posible garbage time (diferencia '+lv.diff+'): minutos restantes ×0.6.</div>';if(lv.pl===0&&lv.el>0.25)flags+='<div class="msg info" style="margin:6px 0">Sin minutos jugados con el partido avanzado: ¿lesión o DNP?</div>';}
+ let combo="";if(c.out.PTS.L&&c.out["3PM"].L&&c.out.PTS.po!=null&&c.out["3PM"].po!=null){const pcb=c.out.PTS.po*c.out["3PM"].po,cq=s.co.COMBO,ev=cq>1?pcb*cq-1:null;
+  combo='<div class="lv"><span>Combo PTS + 3PM, ambos OVER (producto; la real es algo mayor por correlación)</span><b>'+pct(pcb)+'</b></div><div style="display:flex;gap:8px;align-items:center;margin:4px 0"><span class="foot" style="margin:0">Cuota combo</span>'+inp(id+"o_COMBO",s.co.COMBO)+'<b>'+(ev==null?"":"EV "+(ev>=0?"+":"")+r(ev*100,1)+"%")+'</b></div>';}
+ const chips=AL.map((x,i)=>'<label style="display:flex;gap:6px;align-items:center;font-size:13px;margin:3px 0"><input type="checkbox" '+(onA(s,x)?'checked':'')+' onchange="vOff(\''+id+'\','+i+',this.checked)"> '+esc(x.a)+' ausente → '+(x.adj>=0?'+':'')+r(x.adj,0)+'% pts · '+(x.dm>=0?'+':'')+r(x.dm,1)+' min · '+x.n+' part.</label>').join("");
+ let live="";if(l19){const L=s.live;live='<div style="display:flex;gap:6px;margin:6px 0"><button class="chip" onclick="vLive()">🔴 Traer datos en vivo</button></div><div class="foot" id="v19st" style="text-align:left">'+(L?esc(L.txt||""):'Sin datos en vivo: tráelos o escribe cuarto, reloj y acumulados a mano.')+'</div>'+
+  '<div class="row r3"><div><label>Cuarto</label>'+inp("v19per",s.per,60)+'</div><div><label>Reloj (mm:ss)</label><input id="v19clk" value="'+esc(s.clk||"")+'" style="width:80px;padding:6px 8px;font-size:14px"></div><div><label>Min. restan jugador</label>'+inp("v19rem",s.remMan==null?"":s.remMan,70)+'</div></div>'+
+  '<div class="lv"><span>Línea 1 · MPG proyectados (pre-partido)</span><b>'+r(s.min,1)+' min</b></div><div class="lv"><span>Línea 2 · Minutos jugados (boxscore)</span><b>'+inp("v19pl",s.played,70)+'</b></div>'+
+  (lv?'<div class="lv"><span>Restan al partido → al jugador (proy.) → total</span><b>'+r(lv.remG,1)+' → '+r(lv.rem,1)+' → '+r(lv.tot,1)+' min</b></div>':'');}
+ return'<div class="card" id="'+id+'card"><div class="sec" style="margin-top:0">'+(l19?'🔴 V19 EN VIVO':'🧠 Modelo v18')+' · '+esc(R.nom)+' vs '+esc(R.rival)+'</div>'+live+
+ '<div class="leg"><span>Minutos auto: '+au.v+' ('+(au.ok?'últimos '+au.n+' partidos'+(au.out?', '+au.out+' outlier(s) &lt;75% de la mediana descartado(s)':''):'pocos datos, uso tu slider')+')</span></div>'+
+ '<div class="row r3" style="margin-top:8px"><div><label>'+(l19?'MPG pre-partido':'Minutos')+'</label>'+inp(id+"min",s.min,70)+'</div><div><label>Ausentes (% uso)</label>'+inp(id+"adj",r(adjV,1),70)+'</div><div><label>&nbsp;</label><button class="chip" style="width:100%" onclick="vRe(\''+id+'\')">Recalcular</button></div></div>'+
+ (chips?'<div style="margin:4px 0">'+chips+'</div>':'')+'<div class="leg" style="margin-bottom:8px"><span>Ausentes: se calcula solo con lo consultado en la pestaña Jugador ausente (sin consulta = 0). Editar el campo lo fija a mano.</span><button class="chip" onclick="vAu(\''+id+'\')">Minutos auto</button></div>'+
+ '<div class="grid2">'+tiles+'</div><div class="leg" style="margin-top:8px"><span>Ritmo/defensa: '+(s.real?'boxscores reales ('+s.real.nT+' y '+s.real.nR+' partidos): pace '+r(s.real.pT,1)+' / '+r(s.real.pR,1)+' · DefRtg rival '+r(s.real.dR,1):'tablas fijas del código')+'</span></div>'+
+ '<div style="display:flex;gap:6px;margin:6px 0"><button class="chip" onclick="vReal()">📡 Pace/DefRtg reales</button>'+(s.real?'<button class="chip" onclick="vNoReal()">↺ Tablas fijas</button>':'')+'</div>'+(l19?'':'<div class="foot" id="v18st" style="text-align:left"></div>')+
+ (rows?'<div class="sec">'+(l19?'En vivo: acumulado, línea y cuotas (todo editable)':'Línea vs modelo (líneas de la pestaña Líneas)')+'</div><div class="scroll"><table><thead><tr><th class="l">Stat</th>'+(l19?'<th>Ya</th><th>Línea</th>':'<th>Línea</th>')+'<th>'+(l19?'Final':'Proy.')+'</th><th>Over / Under</th>'+(l19?'':'<th>Hist.</th>')+'<th>Cuota O</th><th>Cuota U</th><th>Ventaja</th><th>EV</th><th class="l">Señal</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+combo+flags+'<div class="foot" style="text-align:left">Over = llega a la línea (≥ techo). Ventaja = tu prob. − prob. implícita sin margen. Cuotas decimales. Registro y calibración: pestaña 📈 Registro.</div>':'<div class="msg info" style="margin-top:8px">Escribe líneas en la pestaña 📋 Líneas para ver probabilidades, cuotas y señal.</div>')+'</div>';}
+
+function repaint(id){const el=$$(id+"card");if(el&&window.__V18R)el.outerHTML=card(window.__V18R,id);}
+function readDom(id){const s=G(id),g=i=>{const e=$$(i);return e?parseFloat(String(e.value).replace(",",".")):NaN;},m=g(id+"min");if(m>0)s.min=m;const a=g(id+"adj");s.adjMan=isNaN(a)||Math.abs(a-s.adjAuto)<0.05?null:a;
+ KS.concat(["COMBO"]).forEach(k=>{const o=g(id+"o_"+k),u=g(id+"u_"+k);s.co[k]=o>1?o:null;s.cu[k]=u>1?u:null;});
+ if(id==="v19"){KS.forEach(k=>{const a=g("v19a_"+k),l=g("v19l_"+k);if(!isNaN(a))s.act[k]=a;s.ln[k]=l>0?l:null;});const p=g("v19per");s.per=p>0?p:null;s.clk=($$("v19clk")||{value:""}).value;const pl=g("v19pl");s.played=isNaN(pl)?null:pl;const rm=g("v19rem");s.remMan=isNaN(rm)?null:rm;}}
+window.vRe=id=>{readDom(id);repaint(id);};
+window.vAu=id=>{readDom(id);G(id).min=minAuto(window.__V18.pl,window.__V18R.min).v;repaint(id);};
+window.vOff=(id,i,on)=>{readDom(id);const x=ausList(window.__V18R)[i];if(x)G(id).off[x.a]=on?0:1;repaint(id);};
+window.vNoReal=()=>{readDom("v18");readDom("v19");S.real=T.real=null;repaint("v18");repaint("v19");};
+window.vReal=async function(){readDom("v18");readDom("v19");const R=window.__V18R,st=$$("v18st")||$$("v19st");
+ try{const kt=ALIAS_M[R.team]||R.team,kr=ALIAS_M[R.rival]||R.rival;if(!EQUIPOS_M[kt]||!EQUIPOS_M[kr])throw new Error("Equipo no reconocido ("+R.team+"/"+R.rival+")");
+  const it=EQUIPOS_M[kt][0],ir=EQUIPOS_M[kr][0];if(st)st.textContent="Descargando boxscores… (la primera vez tarda; luego queda en caché)";
+  const TT=await cargaTemp(R.temp,[it,ir],false,(h,n)=>{if(st)st.textContent="Boxscores "+h+"/"+n+"…";}),ct=R.cond==="LOCAL"?"home":R.cond==="VISITANTE"?"away":null,cr=R.cond==="LOCAL"?"away":R.cond==="VISITANTE"?"home":null,
+  sel=(t,c)=>{const a=TT.regs[t]||[],f=filt(a,c);return f.length>=4?f:a;},gt=sel(it,ct),gr=sel(ir,cr);
+  if(gt.length<3||gr.length<3)throw new Error("Muy pocos partidos jugados (equipo "+gt.length+", rival "+gr.length+"). Se mantienen las tablas fijas.");
+  const pm=a=>a.reduce((s,x)=>s+x.pos,0)/a.length,ps=(a,l)=>a.reduce((s,x)=>s+2*x[l].fg2m+3*x[l].fg3m+x[l].ftm,0)/a.reduce((s,x)=>s+x.pos,0)*100,lg=TT.ligaRecs,bp=pm(lg);
+  S.real=T.real={pT:pm(gt),pR:pm(gr),dR:ps(gr,"de"),bs:{bp,bd:ps(lg,"of"),bpT:bp,bpR:bp,n:gt.length+gr.length,src:"boxscores"},nT:gt.length,nR:gr.length};repaint("v18");repaint("v19");
+ }catch(e){if(st)st.textContent="⚠️ "+(e.message||e);}};
+
+window.vLive=async function(){readDom("v19");const R=window.__V18R,V=window.__V18,st=$$("v19st"),say=t=>{if(st)st.textContent=t;};
+ try{say("Buscando partido…");const a=fixAb(R.team),b=fixAb(R.rival),sc=await getJSON(BASE+"/scoreboard"),
+  ev=(sc.events||[]).find(e=>{const ab=((e.competitions[0]||{}).competitors||[]).map(c=>fixAb(c.team.abbreviation));return ab.includes(a)&&ab.includes(b);});
+  if(!ev)throw new Error("No hay partido de hoy entre "+R.team+" y "+R.rival+" en la cartelera de ESPN.");
+  const stt=ev.status||{},ty=stt.type||{},cs=ev.competitions[0].competitors,sH=num((cs.find(c=>c.homeAway==="home")||{}).score),sA=num((cs.find(c=>c.homeAway==="away")||{}).score),
+  sm=await getJSON(BASE+"/summary",{event:ev.id});let hit=null;
+  for(const tm of(sm.boxscore&&sm.boxscore.players)||[]){const g=(tm.statistics||[])[0];if(!g)continue;const lb=g.labels||g.names||[];
+   for(const x of g.athletes||[])if(String(x.athlete.id)===String(V.j.id)||normalize(x.athlete.displayName)===normalize(R.nom)){hit={lb,s:x.stats||[],dnp:x.didNotPlay};}}
+  const S2=G("v19");S2.live={fecha:localDay(ev.date)||R.fecha,diff:Math.abs(sH-sA),txt:(ty.state==="pre"?"Por jugar":ty.state==="post"?"FINAL":"EN VIVO")+" · "+(ty.detail||"")+" · "+sA+"-"+sH+" (visitante-local) · actualizado "+new Date().toLocaleTimeString("es-CL",{hour:"2-digit",minute:"2-digit"})};
+  if(ty.state!=="pre"){S2.per=ty.state==="post"?4:(stt.period||1);S2.clk=ty.state==="post"?"0:00":(stt.displayClock||"");S2.remMan=null;}
+  if(hit&&!hit.dnp&&hit.s.length){const ix=n=>hit.lb.indexOf(n),mn=parseFloat(hit.s[ix("MIN")]);S2.played=isNaN(mn)?0:mn;S2.act.PTS=num(hit.s[ix("PTS")]);S2.act.REB=num(hit.s[ix("REB")]);S2.act.AST=num(hit.s[ix("AST")]);S2.act["3PM"]=pFG(hit.s[ix("3PT")])[0];}
+  else S2.live.txt+=" · jugador sin estadísticas aún";repaint("v19");
+ }catch(e){say("⚠️ "+(e.message||e));}};
+
+/* --- calibración + pestaña Registro --- */
+function calibHtml(key){const A=LS(key)||[],L=A.filter(e=>e.res);let h='<div class="foot" style="text-align:left">'+A.length+' proyecciones guardadas · '+L.length+' con resultado · '+(A.length-L.length)+' pendientes.</div>';if(!L.length)return h;
  const bins=[[.5,.6],[.6,.7],[.7,.8],[.8,1.01]].map(b=>({b,n:0,p:0,h:0})),bi={};let br=0,nb=0;KS.forEach(k=>bi[k]={e:0,a:0,n:0});
  L.forEach(e=>KS.forEach(k=>{const x=e.s[k],y=e.res[k];if(y==null)return;bi[k].e+=y-x.mu;bi[k].a+=Math.abs(y-x.mu);bi[k].n++;
   if(x.L&&x.po!=null){const ov=x.po>=.5,pp=ov?x.po:1-x.po,hit=((y>=Math.ceil(x.L))===ov)?1:0;br+=(pp-hit)**2;nb++;const q=bins.find(q=>pp>=q.b[0]&&pp<q.b[1]);if(q){q.n++;q.p+=pp;q.h+=hit;}}}));
- h+='<div class="sec">Calibración: cuando el modelo dice X%, ¿acierta X%?</div><div class="scroll"><table><thead><tr><th class="l">Prob. modelo</th><th>n</th><th>Dijo</th><th>Acertó</th></tr></thead><tbody>'+
+ return h+'<div class="sec">Calibración: cuando el modelo dice X%, ¿acierta X%?</div><div class="scroll"><table><thead><tr><th class="l">Prob. modelo</th><th>n</th><th>Dijo</th><th>Acertó</th></tr></thead><tbody>'+
   bins.map(q=>q.n?'<tr><td class="l">'+Math.round(q.b[0]*100)+'–'+Math.min(100,Math.round(q.b[1]*100))+'%</td><td>'+q.n+'</td><td>'+pct(q.p/q.n)+'</td><td class="'+(Math.abs(q.h/q.n-q.p/q.n)<=0.08?'ok':'no')+'">'+pct(q.h/q.n)+'</td></tr>':'').join("")+'</tbody></table></div>'+
   (nb?'<div class="foot" style="text-align:left">Brier '+(br/nb).toFixed(3)+' (0.250 = azar; menor es mejor) · n='+nb+'. Con n pequeño no concluyas nada.</div>':'')+
-  '<div class="sec">Sesgo de la proyección (real − proyectado)</div><div class="scroll"><table><thead><tr><th class="l">Stat</th><th>n</th><th>Sesgo</th><th>Error abs.</th></tr></thead><tbody>'+
-  KS.map(k=>bi[k].n?'<tr><td class="l">'+k+'</td><td>'+bi[k].n+'</td><td>'+(bi[k].e/bi[k].n>=0?"+":"")+(bi[k].e/bi[k].n).toFixed(2)+'</td><td>'+(bi[k].a/bi[k].n).toFixed(2)+'</td></tr>':'').join("")+'</tbody></table></div>';
- return h;}
-
-function build(R){const V=window.__V18,au=minAuto(V.pl,R.min),key=V.j.id+"|"+R.rival+"|"+R.fecha;
- if(S.key!==key)S={key,real:null,min:au.v,adj:0,co:{},cu:{}};
- const c=calc(R);guardar(R,c);
- const tiles=KS.map(k=>{const x=c.out[k];return'<div class="stat"><div class="k">'+NM[k]+'</div><div class="v">'+r(x.mu,1)+'</div><div class="s">± '+r(x.sd,1)+' · 80%: '+Math.max(0,Math.round(x.mu-1.28*x.sd))+'–'+Math.round(x.mu+1.28*x.sd)+(k==="3PM"?' · '+r(c.pa3,1)+' intentos al '+r(c.pc3*100,0)+'%':'')+'</div></div>';}).join("");
- const inp=(id,v)=>'<input id="'+id+'" type="number" inputmode="decimal" step="0.01" value="'+(v||"")+'" style="width:72px;padding:6px 8px;font-size:14px">';
- const act=KS.filter(k=>c.out[k].L);let rows="",flags="";
- act.forEach(k=>{const x=c.out[k],s=sig(k,x);rows+='<tr><td class="l"><b>'+k+'</b></td><td>'+x.L+'</td><td>'+r(x.mu,1)+'±'+r(x.sd,1)+'</td><td class="'+(x.po>=.5?'ok':'no')+'">'+pct(x.po)+' / '+pct(1-x.po)+'</td><td>'+pct(x.hit)+'</td><td>'+inp("v18o_"+k,S.co[k])+'</td><td>'+inp("v18u_"+k,S.cu[k])+'</td><td>'+(s.edge==null?"–":(s.edge>=0?"+":"")+r(s.edge*100,1)+" pts")+'</td><td>'+(s.ev==null?"–":(s.ev>=0?"+":"")+r(s.ev*100,1)+"%")+'</td><td class="l"><b>'+s.t+'</b></td></tr>';
-  if(x.f.length)flags+='<div class="msg info" style="margin:6px 0"><b>'+k+':</b> '+x.f.map(esc).join(" · ")+'</div>';});
- let combo="";if(c.out.PTS.L&&c.out["3PM"].L){const pcb=c.out.PTS.po*c.out["3PM"].po,cq=S.co.COMBO,ev=cq>1?pcb*cq-1:null;
-  combo='<div class="lv"><span>Combo PTS + 3PM, ambos OVER (producto; la real es algo mayor por correlación)</span><b>'+pct(pcb)+'</b></div><div style="display:flex;gap:8px;align-items:center;margin:4px 0"><span class="foot" style="margin:0">Cuota combo</span>'+inp("v18o_COMBO",S.co.COMBO)+'<b>'+(ev==null?"":"EV "+(ev>=0?"+":"")+r(ev*100,1)+"%")+'</b></div>';}
- return'<div class="card" id="v18card"><div class="sec" style="margin-top:0">🧠 Modelo v18 · probabilidad, triples y valor</div>'+
- '<div class="leg"><span>Minutos auto: '+au.v+' ('+(au.ok?'últimos '+au.n+' partidos'+(au.out?', '+au.out+' outlier(s) &lt;75% de la mediana descartado(s)':''):'pocos datos, uso tu slider')+')</span></div>'+
- '<div class="row r3" style="margin-top:8px"><div><label>Minutos</label><input id="v18min" type="number" inputmode="decimal" step="0.5" value="'+S.min+'"></div><div><label>Ausentes (% uso)</label><input id="v18adj" type="number" inputmode="decimal" step="1" value="'+(S.adj||0)+'"></div><div><label>&nbsp;</label><button class="chip" style="width:100%" onclick="v18Re()">Recalcular</button></div></div>'+
- '<div class="leg" style="margin-bottom:8px"><span>Ausentes: súbelo a mano (ej. +8) según la pestaña Jugador ausente; 0 = sin ajuste.</span><button class="chip" onclick="v18Au()">Usar minutos auto</button></div>'+
- '<div class="grid2">'+tiles+'</div>'+
- '<div class="leg" style="margin-top:8px"><span>Ritmo/defensa: '+(S.real?'boxscores reales ('+S.real.nT+' y '+S.real.nR+' partidos): pace '+r(S.real.pT,1)+' / '+r(S.real.pR,1)+' · DefRtg rival '+r(S.real.dR,1):'tablas fijas del código')+'</span></div>'+
- '<div style="display:flex;gap:6px;margin:6px 0"><button class="chip" onclick="v18Real()">📡 Pace/DefRtg reales</button>'+(S.real?'<button class="chip" onclick="v18NoReal()">↺ Tablas fijas</button>':'')+'</div><div class="foot" id="v18st" style="text-align:left"></div>'+
- (act.length?'<div class="sec">Línea vs modelo (líneas de la pestaña Líneas)</div><div class="scroll"><table><thead><tr><th class="l">Stat</th><th>Línea</th><th>Proy.</th><th>Over / Under</th><th>Hist.</th><th>Cuota O</th><th>Cuota U</th><th>Ventaja</th><th>EV</th><th class="l">Señal</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+combo+flags+'<div class="foot" style="text-align:left">Over = llega a la línea (≥ techo de la línea). Ventaja = tu prob. − prob. implícita sin margen de la casa. Cuotas decimales; con una sola cuota se usa 1/cuota. Ventajas chicas con muestra chica son ruido.</div>':'<div class="msg info" style="margin-top:8px">Escribe líneas en la pestaña 📋 Líneas para ver probabilidades, cuotas y señal.</div>')+
- '<details id="v18log" style="margin-top:12px"><summary style="color:var(--mut);font-size:13px;cursor:pointer">📈 Registro y calibración</summary><div style="margin-top:8px"><button class="chip" onclick="v18Res()">Actualizar resultados</button><div id="v18cal">'+calibHtml()+'</div></div></details></div>';}
-
-function repaint(){const el=$$("v18card");if(!el||!window.__V18R)return;const w=$$("v18log")&&$$("v18log").open;el.outerHTML=build(window.__V18R);if(w&&$$("v18log"))$$("v18log").open=true;}
-function readDom(){const g=id=>{const e=$$(id);return e?parseFloat(String(e.value).replace(",",".")):NaN;},m=g("v18min");if(m>0)S.min=m;const a=g("v18adj");S.adj=isNaN(a)?0:a;
- KS.concat(["COMBO"]).forEach(k=>{const o=g("v18o_"+k),u=g("v18u_"+k);S.co[k]=o>1?o:null;S.cu[k]=u>1?u:null;});}
-window.v18Re=()=>{readDom();repaint();};
-window.v18Au=()=>{readDom();S.min=minAuto(window.__V18.pl,window.__V18R.min).v;repaint();};
-window.v18NoReal=()=>{readDom();S.real=null;repaint();};
-window.v18Real=async function(){readDom();const R=window.__V18R,st=$$("v18st");
- try{const kt=ALIAS_M[R.team]||R.team,kr=ALIAS_M[R.rival]||R.rival;if(!EQUIPOS_M[kt]||!EQUIPOS_M[kr])throw new Error("Equipo no reconocido ("+R.team+"/"+R.rival+")");
-  const it=EQUIPOS_M[kt][0],ir=EQUIPOS_M[kr][0];st.textContent="Descargando boxscores… (la primera vez tarda; luego queda en caché)";
-  const T=await cargaTemp(R.temp,[it,ir],false,(h,n)=>{st.textContent="Boxscores "+h+"/"+n+"…";});
-  const ct=R.cond==="LOCAL"?"home":R.cond==="VISITANTE"?"away":null,cr=R.cond==="LOCAL"?"away":R.cond==="VISITANTE"?"home":null;
-  const sel=(t,c)=>{const a=T.regs[t]||[],f=filt(a,c);return f.length>=4?f:a;},gt=sel(it,ct),gr=sel(ir,cr);
-  if(gt.length<3||gr.length<3)throw new Error("Muy pocos partidos jugados en la temporada (equipo "+gt.length+", rival "+gr.length+"). Se mantienen las tablas fijas.");
-  const pm=a=>a.reduce((s,x)=>s+x.pos,0)/a.length,ps=(a,l)=>a.reduce((s,x)=>s+2*x[l].fg2m+3*x[l].fg3m+x[l].ftm,0)/a.reduce((s,x)=>s+x.pos,0)*100,lg=T.ligaRecs,bp=pm(lg);
-  S.real={pT:pm(gt),pR:pm(gr),dR:ps(gr,"de"),bs:{bp,bd:ps(lg,"of"),bpT:bp,bpR:bp,n:gt.length+gr.length,src:"boxscores"},nT:gt.length,nR:gr.length};repaint();
- }catch(e){if(st)st.textContent="⚠️ "+(e.message||e);}};
-window.v18Res=async function(){const A=LS(LK)||[],hoy=new Date().toISOString().slice(0,10),cache={};let k=0;
- for(const e of A){if(e.res||!e.fecha||e.fecha>hoy)continue;
+  '<div class="sec">Sesgo (real − proyectado)</div><div class="scroll"><table><thead><tr><th class="l">Stat</th><th>n</th><th>Sesgo</th><th>Error abs.</th></tr></thead><tbody>'+
+  KS.map(k=>bi[k].n?'<tr><td class="l">'+k+'</td><td>'+bi[k].n+'</td><td>'+(bi[k].e/bi[k].n>=0?"+":"")+(bi[k].e/bi[k].n).toFixed(2)+'</td><td>'+(bi[k].a/bi[k].n).toFixed(2)+'</td></tr>':'').join("")+'</tbody></table></div>';}
+function tablaReg(A){return'<div class="scroll"><table><thead><tr><th class="l">Fecha</th><th>Rival</th>'+KS.map(k=>'<th>'+k+'</th>').join("")+'</tr></thead><tbody>'+A.map(e=>'<tr><td class="l">'+esc(e.fecha)+(e.lv?' <small>Q'+e.lv.per+'</small>':'')+'</td><td>'+esc(e.rival)+'</td>'+KS.map(k=>{const x=e.s[k],y=e.res?e.res[k]:null;
+  const mk=x.L&&x.po!=null&&y!=null?(((y>=Math.ceil(x.L))===(x.po>=.5))?' ✅':' ❌'):'';return'<td>'+r(x.mu,1)+(y!=null?'→'+y:'')+mk+(x.L?'<br><small style="color:var(--mut)">L'+x.L+' '+pct(x.po)+'</small>':'')+'</td>';}).join("")+'</tr>').join("")+'</tbody></table></div>';}
+function sect(t,key){const A=LS(key)||[],g={};A.forEach(e=>(g[e.nom]=g[e.nom]||[]).push(e));
+ return'<div class="card"><div class="sec" style="margin-top:0">'+t+'</div>'+calibHtml(key)+'<div class="sec">Registros por jugador</div>'+
+  (Object.keys(g).sort().map(n=>'<details class="iy" ontoggle="this.querySelector(\'.pm\').textContent=this.open?\'−\':\'＋\'"><summary><b class="pm">＋</b> '+esc(n)+' ('+g[n].length+')</summary><div class="iyl">'+tablaReg(g[n].slice().sort((a,b)=>b.fecha.localeCompare(a.fecha)))+'</div></details>').join("")||'<div class="foot" style="text-align:left">Sin registros todavía.</div>')+'</div>';}
+function regTab(){const el=$$("viewReg");if(!el)return;const ops=[...el.querySelectorAll("details")].map(d=>d.open?1:0);
+ el.innerHTML='<div class="card"><div class="sec" style="margin-top:0">📈 Registro y calibración</div><button class="chip" onclick="vRes()">Actualizar resultados</button><div class="foot" id="regSt" style="text-align:left">Los resultados se traen del historial del jugador cuando el partido ya terminó.</div></div>'+sect("🧠 Tarjeta V18","nba_v18_log")+sect("🔴 Tarjeta V19 en vivo","nba_v19_log");
+ [...el.querySelectorAll("details")].forEach((d,i)=>{if(ops[i]){d.open=true;}});}
+window.vRes=async function(){const hoy=new Date().toISOString().slice(0,10),cache={},st=$$("regSt");let k=0;window.__nocache=true;
+ try{for(const key of[L18,L19]){const A=LS(key)||[];for(const e of A){if(e.res||!e.fecha||e.fecha>hoy)continue;if(st)st.textContent="Consultando "+e.nom+"…";
   const d=cache[e.pid]||(cache[e.pid]=await getJSON(GAMELOG+e.pid+"/gamelog",{season:e.temp}).then(parseEff).catch(()=>null));if(!d)continue;
-  const g=d.rows.find(x=>x.rv===fixAb(e.rival)&&x.MIN>0&&Math.abs(Date.parse(x.fe)-Date.parse(e.fecha))<=1.5*864e5);
-  if(g){e.res={PTS:g.PTS,REB:g.REB,AST:g.AST,"3PM":g.tpm,MIN:g.MIN};k++;}}
- SS(LK,A);const c=$$("v18cal");if(c)c.innerHTML='<div class="foot" style="text-align:left">'+k+' resultado(s) nuevo(s).</div>'+calibHtml();};
+  const g=d.rows.find(x=>x.rv===fixAb(e.rival)&&x.MIN>0&&Math.abs(Date.parse(x.fe)-Date.parse(e.fecha))<=1.5*864e5);if(g){e.res={PTS:g.PTS,REB:g.REB,AST:g.AST,"3PM":g.tpm,MIN:g.MIN};k++;}}SS(key,A);}}
+ finally{window.__nocache=false;}regTab();if($$("regSt"))$$("regSt").textContent=k+" resultado(s) nuevo(s).";};
 
+/* --- enganches --- */
 const orig=window.renderEff;
-window.renderEff=function(R){orig.apply(this,arguments);try{window.__V18R=R;$$("effOut").insertAdjacentHTML("beforeend",build(R));}catch(e){console.error("v18",e);}};
+window.renderEff=function(R){orig.apply(this,arguments);try{if(window.__V18)SS("nba_v19_ctx",{pl:window.__V18.pl,j:window.__V18.j});else window.__V18=LS("nba_v19_ctx");
+ window.__V18R=R;if(window.__V18)$$("effOut").insertAdjacentHTML("beforeend",card(R,"v18")+card(R,"v19"));}catch(e){console.error("v19",e);}};
+const oa=window.renderAus;window.renderAus=function(){oa.apply(this,arguments);regAus();};
+const ov=window.verVista;window.verVista=function(v){ov.apply(this,arguments);const e=$$("viewReg");if(e){e.classList.toggle("hidden",v!=="r");if(v==="r")regTab();}};
 setTimeout(()=>{const d=new Date(),y=d.getFullYear()+(d.getMonth()>=9?1:0);["temp","etemp","useason","mTemp"].forEach(id=>{const e=$$(id);if(e&&!e.value)e.value=y;});},800);
 })();
 
