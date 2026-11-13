@@ -185,7 +185,7 @@ tr.sp td{background:var(--card);color:var(--mut);font-size:11px;text-transform:u
       <div class="foot" style="text-align:left">Se guarda solo en este dispositivo.</div>
     </div>
   </details>
-  <div class="foot">v19</div>
+  <div class="foot">v20</div>
 </div>
 
 <div id="status"></div>
@@ -1289,6 +1289,62 @@ window.renderEff=function(R){orig.apply(this,arguments);try{if(window.__V18)SS("
 const oa=window.renderAus;window.renderAus=function(){oa.apply(this,arguments);regAus();};
 const ov=window.verVista;window.verVista=function(v){ov.apply(this,arguments);const e=$$("viewReg");if(e){e.classList.toggle("hidden",v!=="r");if(v==="r")regTab();}};
 setTimeout(()=>{const d=new Date(),y=d.getFullYear()+(d.getMonth()>=9?1:0);["temp","etemp","useason","mTemp"].forEach(id=>{const e=$$(id);if(e&&!e.value)e.value=y;});},800);
+})();
+
+/* ===== v20: tarjeta V20 (Match) · análisis con reporte de lesionados ===== */
+(function(){
+const $$=id=>document.getElementById(id),num=x=>{const v=parseFloat(String(x).replace(",","."));return isNaN(v)?0:v;},avg=a=>a.length?a.reduce((s,x)=>s+x,0)/a.length:0;
+const f1=x=>(x>=0?"+":"")+x.toFixed(1),CK="nba_v20_c",AK="nba_v19_aus",CA="#38bdf8",CB="#f97316";
+const LS=k=>{try{return JSON.parse(localStorage.getItem(k)||"null");}catch(e){return null;}},SS=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}};
+const W=s=>{s=String(s||"").toLowerCase();return/out/.test(s)?1:/doubt/.test(s)?0.75:/question/.test(s)?0.5:0.4;};
+const tid=n=>{const e=Object.values(EQUIPOS_M).find(v=>v[1]===n);return e?e[0]:null;};
+async function teamEvs(t){const ev=((await getJSON(BASE+"/teams/"+t+"/schedule")).events||[]).filter(e=>{try{return e.competitions[0].status.type.completed;}catch(_){return false;}});
+ return enLotes(ev,async e=>{const k=e.id+"_"+t;if(!(k in ABC)){try{ABC[k]=extraeAus(await getJSON(BASE+"/summary",{event:e.id}),t);}catch(_){return{recs:[]};}}
+  const cs=e.competitions[0].competitors||[],me=cs.find(x=>String(x.team.id)===String(t)),op=cs.find(x=>String(x.team.id)!==String(t)),sc=x=>x&&x.score!==undefined?(typeof x.score==="object"?x.score.displayValue:x.score):"0";
+  return{id:e.id,ts:num(sc(me)),os:num(sc(op)),recs:ABC[k]};},6);}
+function analiza(evs,inj,name){const g=evs.filter(e=>e.recs.length),P={};
+ g.forEach(e=>e.recs.forEach(x=>{if(!(x.min>0))return;const p=P[x.id]||(P[x.id]={id:x.id,name:x.name,gp:0,m:0,p:0});p.gp++;p.m+=x.min;p.p+=x.pts;}));
+ const L=Object.values(P).filter(p=>p.gp>=3).map(p=>({...p,mpg:p.m/p.gp,ppg:p.p/p.gp})),keys=[];
+ (inj||[]).forEach(i=>{const p=L.find(q=>normalize(q.name)===normalize(i.name));if(p&&(p.mpg>=24||p.ppg>=14))keys.push({...p,pos:i.pos,stl:i.st,det:i.det,ret:i.ret,w:W(i.st)});});
+ keys.sort((a,b)=>b.ppg-a.ppg);const otros=(inj||[]).length-keys.length;
+ keys.forEach((x,ix)=>{const wi=g.filter(e=>e.recs.some(r=>r.id===x.id&&r.min>0)),wo=g.filter(e=>!e.recs.some(r=>r.id===x.id&&r.min>0)),n=wo.length,k=4;
+  x.n=n;x.nw=wi.length;x.obsF=n?avg(wo.map(e=>e.ts))-avg(wi.map(e=>e.ts)):0;x.obsA=n?avg(wo.map(e=>e.os))-avg(wi.map(e=>e.os)):0;
+  const pf=-0.30*x.ppg,pa=0.06*x.mpg;x.estF=(n*x.obsF+k*pf)/(n+k);x.estA=(n*x.obsA+k*pa)/(n+k);x.mult=ix===0?1:ix===1?0.8:0.6;
+  const B={};g.forEach(e=>e.recs.forEach(r=>{if(r.id===x.id||!(r.min>0))return;const b=B[r.name]||(B[r.name]={w:[],o:[]});(wi.includes(e)?b.w:b.o).push(r);}));
+  x.ben=Object.keys(B).map(nm=>{const b=B[nm];return{nm,n:b.o.length,pc:avg(b.w.map(r=>r.pts)),dp:avg(b.o.map(r=>r.pts))-avg(b.w.map(r=>r.pts)),dm:avg(b.o.map(r=>r.min))-avg(b.w.map(r=>r.min))};}).filter(b=>b.n>=(n>=3?2:1)&&b.w.length>=3).sort((a,b)=>b.dp-a.dp).slice(0,3);});
+ const dFor=Math.max(-14,Math.min(3,keys.reduce((s,x)=>s+x.estF*x.w*x.mult,0))),dAgn=Math.max(-3,Math.min(10,keys.reduce((s,x)=>s+x.estA*x.w*x.mult,0)));
+ return{name,keys,otros,dFor,dAgn};}
+function regAus(T){try{const M=LS(AK)||{};T.keys.forEach(x=>{if(x.n<2||x.w<0.75)return;const rows={};x.ben.forEach(b=>{rows[b.nm]={dp:b.dp,dm:b.dm,pc:b.pc,n:b.n};});M[x.name]={t:Date.now(),n:x.n,rows};});SS(AK,M);}catch(e){}}
+const tg="this.querySelector('.pm').textContent=this.open?'−':'＋'";
+function tsec(T,c){return'<div class="tn" style="color:'+c+';margin-top:12px">'+esc(T.name)+'</div>'+(T.keys.length?T.keys.map(x=>'<details class="iy" ontoggle="'+tg+'"><summary><b class="pm">＋</b> '+esc(x.name)+' <small style="color:var(--mut)">'+esc(x.pos)+' · '+esc(x.stl)+' · '+r(x.ppg,1)+' pts / '+r(x.mpg,0)+' min</small></summary><div class="iyl">'+
+  '<p style="margin:4px 0">'+esc(x.det)+(x.ret?' · regreso: '+esc(x.ret):'')+' · ponderación '+Math.round(x.w*100)+'%'+(x.mult<1?' · descuento por solapamiento ×'+x.mult:'')+'</p>'+
+  '<p style="margin:4px 0">Sin él ('+x.n+' partido'+(x.n===1?'':'s')+', con él '+x.nw+'): '+(x.n?'el equipo anota '+f1(x.obsF)+' y recibe '+f1(x.obsA)+'.':'no hay partidos sin él.')+' Estimación usada: anota <b>'+f1(x.estF)+'</b> / recibe <b>'+f1(x.estA)+'</b>'+(x.n<4?' (muestra chica: mezclada con regla genérica 30% de sus puntos y 6% de sus minutos)':'')+'.</p>'+
+  (x.ben.length?'<p style="margin:4px 0"><b>Se benefician:</b> '+x.ben.map(b=>esc(b.nm)+' '+f1(b.dp)+' pts ('+f1(b.dm)+' min, '+b.n+' part.)').join(' · ')+'</p>':'<p style="margin:4px 0">Sin compañeros con muestra suficiente sin él.</p>')+'</div></details>').join(""):'<div class="foot" style="text-align:left">Sin lesionados clave reportados.</div>')+
+  (T.otros>0?'<div class="foot" style="text-align:left">'+T.otros+' lesionado(s) más sin peso de titular/estrella (menos de 24 min y 14 pts).</div>':'')+'<div class="lv"><span>Efecto neto en el equipo: anota / recibe</span><b>'+f1(T.dFor)+' / '+f1(T.dAgn)+'</b></div>';}
+function html(R,A,B){const a0=R.prA.pts,b0=R.prB.pts,a1=a0+A.dFor+B.dAgn,b1=b0+B.dFor+A.dAgn,m0=a0-b0,m1=a1-b1,sh=m1-m0,t0=a0+b0,t1=a1+b1;
+ const row=(n,c,o,x)=>'<tr><td class="l" style="color:'+c+'"><b>'+esc(n)+'</b></td><td>'+r(o,1)+'</td><td><b>'+r(x,1)+'</b></td><td class="'+(x-o>=0?'ok':'no')+'">'+f1(x-o)+'</td></tr>';
+ const ln=[];if(Math.abs(sh)>=0.5)ln.push('El reporte mueve el margen <b>'+r(Math.abs(sh),1)+' pts</b> hacia '+esc(sh>0?R.nA:R.nB)+'.');else ln.push('El reporte casi no cambia el margen (±'+r(Math.abs(sh),1)+' pts).');
+ if((m0>=0)!==(m1>=0))ln.push('<b>Cambia el favorito:</b> ahora '+esc(m1>=0?R.nA:R.nB)+' por '+r(Math.abs(m1),1)+'.');
+ ln.push('Total proyectado '+(t1<t0?'baja ':'sube ')+r(Math.abs(t1-t0),1)+' pts ('+r(t0,1)+' → '+r(t1,1)+'): '+(t1<t0?'las bajas pesan más en ataque que en defensa.':'perder defensores pesa más que perder anotación.'));
+ [A,B].forEach(T=>T.keys.forEach(x=>{if(x.w<1)ln.push('<b>'+esc(x.name)+'</b> está '+esc(x.stl)+': su estado puede cambiar antes del tip; se pondera '+Math.round(x.w*100)+'%. Revisa el reporte cerca del partido.');if(x.n<2)ln.push('<b>'+esc(x.name)+'</b>: el equipo casi no jugó sin él; el efecto viene sobre todo de la regla genérica.');}));
+ const ben=[A,B].flatMap(T=>T.keys.filter(x=>x.w>=0.75).flatMap(x=>x.ben.slice(0,2).map(b=>esc(b.nm)+' ('+f1(b.dp)+' pts)')));if(ben.length)ln.push('Props a mirar (suben uso/minutos sin los titulares): '+ben.join(', ')+'. Se cargaron como ausentes en las tarjetas V18/V19.');
+ ln.push('Límite: compara partidos con y sin la baja sin ajustar por rival ni cancha; con pocos partidos es orientativo, no una predicción.');
+ return'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><div class="sec" style="margin:0">🩺 Tarjeta V20 · '+esc(R.nA)+' vs '+esc(R.nB)+'</div><span style="background:#a855f7;color:#fff;font-size:11px;font-weight:800;letter-spacing:.04em;padding:5px 10px;border-radius:999px">ANÁLISIS CON REPORTE DE LESIONADOS</span></div>'+
+ '<div class="scroll" style="margin-top:8px"><table><thead><tr><th class="l">Equipo</th><th>Proy. original</th><th>Con lesionados</th><th>Cambio</th></tr></thead><tbody>'+row(R.nA,CA,a0,a1)+row(R.nB,CB,b0,b1)+'</tbody></table></div>'+
+ '<div class="lv"><span>Margen: original → con lesionados</span><b>'+f1(m0)+' → '+f1(m1)+' ('+esc(R.nA)+')</b></div><div class="lv"><span>Total</span><b>'+r(t0,1)+' → '+r(t1,1)+'</b></div>'+
+ '<div class="msg info" style="margin:8px 0">'+ln.map(x=>'• '+x).join('<br>')+'</div>'+tsec(A,CA)+tsec(B,CB)+
+ '<div style="display:flex;gap:6px;margin-top:10px"><button class="chip" onclick="v20Go(true)">↻ Actualizar reporte</button></div><div class="foot" style="text-align:left">Titulares/estrellas = al menos 24 min o 14 pts por partido esta temporada. Ponderación por estado: Out 100%, Doubtful 75%, Questionable 50%, Day-to-day 40%. Efecto = mezcla de lo observado sin él con una regla genérica (peso 4 partidos).</div>';}
+window.v20Go=async function(force){const R=window.__V20R,box=$$("v20card");if(!R||!box)return;const key=R.nA+"|"+R.nB,c=LS(CK);
+ if(!force&&c&&c.key===key&&Date.now()-c.t<18e5){box.innerHTML=c.html;return;}
+ try{box.innerHTML='<div class="msg info">🩺 V20: cargando reporte de lesionados…</div>';const ia=tid(R.nA),ib=tid(R.nB);if(!ia||!ib)throw new Error("No se pudo identificar los equipos ("+R.nA+" / "+R.nB+").");
+  INJ=null;const inj=await cargaLesiones();if(!inj)throw new Error("No se pudo cargar el reporte de lesionados de ESPN.");
+  const get=n=>inj[n]||inj[Object.keys(inj).find(k=>normalize(k)===normalize(n))]||[];
+  box.innerHTML='<div class="msg info">🩺 V20: analizando partidos de ambos equipos con y sin sus lesionados (se guardan en tu navegador)…</div>';
+  const[ea,eb]=await Promise.all([teamEvs(ia),teamEvs(ib)]),A=analiza(ea,get(R.nA),R.nA),B=analiza(eb,get(R.nB),R.nB),h=html(R,A,B);
+  regAus(A);regAus(B);SS("nba_abc_v1",ABC);SS(CK,{key,t:Date.now(),html:h});if($$("v20card"))$$("v20card").innerHTML=h;
+ }catch(e){if($$("v20card"))$$("v20card").innerHTML='<div class="msg err">'+esc(String(e.message||e))+'</div><button class="chip" onclick="v20Go(true)">Reintentar</button>';}};
+const om=window.renderMatch;
+window.renderMatch=function(R){om.apply(this,arguments);try{window.__V20R=R;$$("maOut").insertAdjacentHTML("beforeend",'<div class="card mx" id="v20card" style="border-left:4px solid #a855f7;margin-top:12px"></div>');window.v20Go(false);}catch(e){console.error("v20",e);}};
 })();
 
 const SKP="nba_state_v1_",sv=(k,o)=>{try{localStorage.setItem(SKP+k,JSON.stringify(o));}catch(e){}},ld=k=>{try{return JSON.parse(localStorage.getItem(SKP+k)||"null");}catch(e){return null;}},
