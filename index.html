@@ -1311,7 +1311,7 @@ function analiza(evs,inj,name){inj=Array.isArray(inj)?inj:[];const g=(evs||[]).f
   x.n=n;x.nw=wi.length;x.obsF=n?avg(wo.map(e=>e.ts))-avg(wi.map(e=>e.ts)):0;x.obsA=n?avg(wo.map(e=>e.os))-avg(wi.map(e=>e.os)):0;
   const pf=-0.30*x.ppg,pa=0.06*x.mpg;x.estF=(n*x.obsF+k*pf)/(n+k);x.estA=(n*x.obsA+k*pa)/(n+k);x.mult=ix===0?1:ix===1?0.8:0.6;
   const B={};g.forEach(e=>e.recs.forEach(r=>{if(r.id===x.id||!(r.min>0))return;const b=B[r.name]||(B[r.name]={w:[],o:[]});(wi.includes(e)?b.w:b.o).push(r);}));
-  x.ben=Object.keys(B).map(nm=>{const b=B[nm];return{nm,n:b.o.length,pc:avg(b.w.map(r=>r.pts)),dp:avg(b.o.map(r=>r.pts))-avg(b.w.map(r=>r.pts)),dm:avg(b.o.map(r=>r.min))-avg(b.w.map(r=>r.min))};}).filter(b=>b.n>=(n>=3?2:1)&&b.w.length>=3).sort((a,b)=>b.dp-a.dp).slice(0,3);});
+  x.ben=Object.keys(B).map(nm=>{const b=B[nm];return{nm,n:b.o.length,nw:b.w.length,pc:avg(b.w.map(r=>r.pts)),dp:avg(b.o.map(r=>r.pts))-avg(b.w.map(r=>r.pts)),dm:avg(b.o.map(r=>r.min))-avg(b.w.map(r=>r.min))};}).filter(b=>b.n>=(n>=3?2:1)&&b.nw>=3).sort((a,b)=>b.dp-a.dp).slice(0,3);});
  const dFor=Math.max(-14,Math.min(3,keys.reduce((s,x)=>s+x.estF*x.w*x.mult,0))),dAgn=Math.max(-3,Math.min(10,keys.reduce((s,x)=>s+x.estA*x.w*x.mult,0)));
  return{name,keys,otros,dFor,dAgn};}
 function regAus(T){try{const M=LS(AK)||{};T.keys.forEach(x=>{if(x.n<2||x.w<0.75)return;const rows={};x.ben.forEach(b=>{rows[b.nm]={dp:b.dp,dm:b.dm,pc:b.pc,n:b.n};});M[x.name]={t:Date.now(),n:x.n,rows};});SS(AK,M);}catch(e){}}
