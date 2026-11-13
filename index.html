@@ -1301,8 +1301,8 @@ const tid=n=>{const e=Object.values(EQUIPOS_M).find(v=>v[1]===n);return e?e[0]:n
 async function teamEvs(t){const ev=((await getJSON(BASE+"/teams/"+t+"/schedule")).events||[]).filter(e=>{try{return e.competitions[0].status.type.completed;}catch(_){return false;}});
  return enLotes(ev,async e=>{const k=e.id+"_"+t;if(!(k in ABC)){try{ABC[k]=extraeAus(await getJSON(BASE+"/summary",{event:e.id}),t);}catch(_){return{recs:[]};}}
   const cs=e.competitions[0].competitors||[],me=cs.find(x=>String(x.team.id)===String(t)),op=cs.find(x=>String(x.team.id)!==String(t)),sc=x=>x&&x.score!==undefined?(typeof x.score==="object"?x.score.displayValue:x.score):"0";
-  return{id:e.id,ts:num(sc(me)),os:num(sc(op)),recs:ABC[k]};},6);}
-function analiza(evs,inj,name){const g=evs.filter(e=>e.recs.length),P={};
+  return{id:e.id,ts:num(sc(me)),os:num(sc(op)),recs:Array.isArray(ABC[k])?ABC[k]:[]};},6);}
+function analiza(evs,inj,name){inj=Array.isArray(inj)?inj:[];const g=(evs||[]).filter(e=>e&&Array.isArray(e.recs)&&e.recs.length),P={};
  g.forEach(e=>e.recs.forEach(x=>{if(!(x.min>0))return;const p=P[x.id]||(P[x.id]={id:x.id,name:x.name,gp:0,m:0,p:0});p.gp++;p.m+=x.min;p.p+=x.pts;}));
  const L=Object.values(P).filter(p=>p.gp>=3).map(p=>({...p,mpg:p.m/p.gp,ppg:p.p/p.gp})),keys=[];
  (inj||[]).forEach(i=>{const p=L.find(q=>normalize(q.name)===normalize(i.name));if(p&&(p.mpg>=24||p.ppg>=14))keys.push({...p,pos:i.pos,stl:i.st,det:i.det,ret:i.ret,w:W(i.st)});});
@@ -1336,13 +1336,13 @@ function html(R,A,B){const a0=R.prA.pts,b0=R.prB.pts,a1=a0+A.dFor+B.dAgn,b1=b0+B
  '<div style="display:flex;gap:6px;margin-top:10px"><button class="chip" onclick="v20Go(true)">↻ Actualizar reporte</button></div><div class="foot" style="text-align:left">Titulares/estrellas = al menos 24 min o 14 pts por partido esta temporada. Ponderación por estado: Out 100%, Doubtful 75%, Questionable 50%, Day-to-day 40%. Efecto = mezcla de lo observado sin él con una regla genérica (peso 4 partidos).</div>';}
 window.v20Go=async function(force){const R=window.__V20R,box=$$("v20card");if(!R||!box)return;const key=R.nA+"|"+R.nB,c=LS(CK);
  if(!force&&c&&c.key===key&&Date.now()-c.t<18e5){box.innerHTML=c.html;return;}
- try{box.innerHTML='<div class="msg info">🩺 V20: cargando reporte de lesionados…</div>';const ia=tid(R.nA),ib=tid(R.nB);if(!ia||!ib)throw new Error("No se pudo identificar los equipos ("+R.nA+" / "+R.nB+").");
-  INJ=null;const inj=await cargaLesiones();if(!inj)throw new Error("No se pudo cargar el reporte de lesionados de ESPN.");
-  const get=n=>inj[n]||inj[Object.keys(inj).find(k=>normalize(k)===normalize(n))]||[];
+ let step="inicio";try{box.innerHTML='<div class="msg info">🩺 V20: cargando reporte de lesionados…</div>';const ia=tid(R.nA),ib=tid(R.nB);if(!ia||!ib)throw new Error("No se pudo identificar los equipos ("+R.nA+" / "+R.nB+").");
+  step="reporte de lesionados";INJ=null;const inj=await cargaLesiones();if(!inj)throw new Error("No se pudo cargar el reporte de lesionados de ESPN.");
+  const get=n=>{const v=inj[n]||inj[Object.keys(inj).find(k=>normalize(k)===normalize(n))];return Array.isArray(v)?v:[];};
   box.innerHTML='<div class="msg info">🩺 V20: analizando partidos de ambos equipos con y sin sus lesionados (se guardan en tu navegador)…</div>';
-  const[ea,eb]=await Promise.all([teamEvs(ia),teamEvs(ib)]),A=analiza(ea,get(R.nA),R.nA),B=analiza(eb,get(R.nB),R.nB),h=html(R,A,B);
+  step="partidos y boxscores";const[ea,eb]=await Promise.all([teamEvs(ia),teamEvs(ib)]);step="análisis";const A=analiza(ea,get(R.nA),R.nA),B=analiza(eb,get(R.nB),R.nB);step="armado de la tarjeta";const h=html(R,A,B);step="guardado";
   regAus(A);regAus(B);SS("nba_abc_v1",ABC);SS(CK,{key,t:Date.now(),html:h});if($$("v20card"))$$("v20card").innerHTML=h;
- }catch(e){if($$("v20card"))$$("v20card").innerHTML='<div class="msg err">'+esc(String(e.message||e))+'</div><button class="chip" onclick="v20Go(true)">Reintentar</button>';}};
+ }catch(e){if($$("v20card"))$$("v20card").innerHTML='<div class="msg err">'+esc(String(e.message||e))+' <small>(paso: '+step+')</small></div><details class="iy"><summary>Detalle técnico</summary><div class="iyl" style="white-space:pre-wrap;font-size:11px">'+esc(String(e.stack||"").split("\n").slice(0,4).join("\n"))+'</div></details><button class="chip" onclick="v20Go(true)">Reintentar</button>';}};
 const om=window.renderMatch;
 window.renderMatch=function(R){om.apply(this,arguments);try{window.__V20R=R;$$("maOut").insertAdjacentHTML("beforeend",'<div class="card mx" id="v20card" style="border-left:4px solid #a855f7;margin-top:12px"></div>');window.v20Go(false);}catch(e){console.error("v20",e);}};
 })();
