@@ -185,7 +185,7 @@ tr.sp td{background:var(--card);color:var(--mut);font-size:11px;text-transform:u
       <div class="foot" style="text-align:left">Se guarda solo en este dispositivo.</div>
     </div>
   </details>
-  <div class="foot">v20</div>
+  <div class="foot">v21</div>
 </div>
 
 <div id="status"></div>
@@ -1147,6 +1147,10 @@ const PHI=z=>{const t=1/(1+0.2316419*Math.abs(z)),p=0.3989423*Math.exp(-z*z/2)*t
 const sd0=a=>{if(a.length<2)return 0;const m=a.reduce((s,x)=>s+x,0)/a.length;return Math.sqrt(a.reduce((s,x)=>s+(x-m)**2,0)/(a.length-1));};
 const val=(g,k)=>k==="3PM"?g.tpm:g[k],pct=x=>x==null?"–":Math.round(x*100)+"%",$$=id=>document.getElementById(id),num=x=>{const v=parseFloat(String(x).replace(",","."));return isNaN(v)?0:v;};
 const imp=(a,b)=>{if(a>1&&b>1){const x=1/a,y=1/b;return x/(x+y);}return a>1?1/a:null;};
+const sg=z=>1/(1+Math.exp(-z)),lg=p=>Math.log(p/(1-p)),cl=p=>Math.min(0.98,Math.max(0.02,p));
+function fitB(key){const pts=[];(LS(key)||[]).filter(e=>e.res).forEach(e=>KS.forEach(k=>{const x=e.s[k],y=e.res[k];if(y==null||!x.L||x.po==null||x.po>=0.995||x.po<=0.005)return;pts.push([lg(cl(x.po)),y>=Math.ceil(x.L)?1:0]);}));
+ let b=1;for(let i=0;i<12;i++){let g=4*(b-1),h=4;pts.forEach(q=>{const p=sg(b*q[0]);g+=(p-q[1])*q[0];h+=p*(1-p)*q[0]*q[0];});b-=g/h;b=Math.max(0,Math.min(1.3,b));}return{b,n:pts.length};}
+const calP=(po,C)=>po==null||po>=0.995||po<=0.005?po:sg(C.b*lg(cl(po)));
 const fresh=()=>({key:"",real:null,min:null,adjMan:null,adjAuto:0,off:{},co:{},cu:{},ln:{},act:{},played:null,per:null,clk:"",remMan:null,live:null});
 let S=Object.assign(fresh(),LS("nba_v19_S18")||{}),T=Object.assign(fresh(),LS("nba_v19_S19")||{});
 const G=id=>id==="v19"?T:S,keep=()=>{SS("nba_v19_S18",S);SS("nba_v19_S19",T);};
@@ -1190,12 +1194,12 @@ function calc(R,s,id,lv){const V=window.__V18,pl=V.pl,st=R.st,mins=s.min,adj=(s.
   out[k]={mu:mu[k],sd,L,po,hit,n:v.length,f,crit:!l19&&(v.length<10||far||ext),act:0};});
  return{out,pa3:pa*mins,pc3};}
 
-function sig(k,x,s){if(!x.L||x.po==null)return null;const over=x.po>=.5,pp=over?x.po:1-x.po,co=s.co[k],cu=s.cu[k],cq=over?co:cu;let ev=null,edge=null;
+function sig(k,x,s){if(!x.L||x.po==null)return null;const P=x.pc!=null?x.pc:x.po,over=P>=.5,pp=over?P:1-P,co=s.co[k],cu=s.cu[k],cq=over?co:cu;let ev=null,edge=null;
  if(cq>1){const ip=over?imp(co,cu):imp(cu,co);edge=pp-ip;ev=pp*cq-1;}const sd=over?"OVER":"UNDER";
  return{ev,edge,t:ev!=null?(ev>0.05&&edge>=0.04&&!x.crit?"✅ VALOR "+sd:ev>0?"🟡 marginal "+sd:"⛔ sin valor"):(pp>=0.62&&!x.crit?"🟢 lectura "+sd:"⚪ neutra")};}
 
 function guardar(R,c,id,fecha,lv){const V=window.__V18;if(!fecha||!V)return;const key=id==="v19"?L19:L18,L=LS(key)||[],ik=V.j.id+"|"+fecha+"|"+R.rival,e=L.find(x=>x.id===ik);if(e&&e.res)return;const s={};
- KS.forEach(k=>{const x=c.out[k];s[k]={mu:+x.mu.toFixed(2),sd:+x.sd.toFixed(2),L:x.L,po:x.po==null?null:+x.po.toFixed(3)};});
+ KS.forEach(k=>{const x=c.out[k];s[k]={mu:+x.mu.toFixed(2),sd:+x.sd.toFixed(2),L:x.L,po:x.po==null?null:+x.po.toFixed(3),pc:x.pc==null?null:+x.pc.toFixed(3)};});
  const n={id:ik,pid:V.j.id,nom:R.nom,rival:R.rival,fecha,temp:R.temp,min:G(id).min,ts:Date.now(),s};if(lv)n.lv={per:lv.per,pl:+lv.pl.toFixed(1),rem:+lv.rem.toFixed(1)};
  if(e)Object.assign(e,n);else L.push(n);SS(key,L.slice(-400));}
 
@@ -1203,12 +1207,12 @@ const inp=(i,v,w)=>'<input id="'+i+'" type="number" inputmode="decimal" step="0.
 
 function card(R,id){const V=window.__V18,l19=id==="v19",au=minAuto(V.pl,R.min),key=V.j.id+"|"+R.rival+"|"+(l19?"":R.fecha);let s=G(id);
  if(s.key!==key){s=fresh();s.key=key;s.min=au.v;if(l19)s.ln=Object.assign({},R.lineas);if(l19)T=s;else S=s;}
- const AL=ausList(R);s.adjAuto=Math.min(40,AL.reduce((a,x)=>a+(onA(s,x)?x.adj:0),0));const adjV=s.adjMan!=null?s.adjMan:s.adjAuto,lv=l19&&s.per?liveCtx(s,s.min):null,c=calc(R,s,id,lv);
+ const AL=ausList(R);s.adjAuto=Math.min(40,AL.reduce((a,x)=>a+(onA(s,x)?x.adj:0),0));const adjV=s.adjMan!=null?s.adjMan:s.adjAuto,lv=l19&&s.per?liveCtx(s,s.min):null,c=calc(R,s,id,lv),C=fitB(l19?L19:L18);KS.forEach(k=>{c.out[k].pc=calP(c.out[k].po,C);});
  guardar(R,c,id,l19?(s.live&&s.live.fecha):R.fecha,lv);keep();
  const tiles=KS.map(k=>{const x=c.out[k];return'<div class="stat"><div class="k">'+NM[k]+(lv?' final':'')+'</div><div class="v">'+r(x.mu,1)+'</div><div class="s">± '+r(x.sd,1)+(lv?' · ya '+x.act:' · 80%: '+Math.max(0,Math.round(x.mu-1.28*x.sd))+'–'+Math.round(x.mu+1.28*x.sd))+(k==="3PM"&&!lv?' · '+r(c.pa3,1)+' int. al '+r(c.pc3*100,0)+'%':'')+'</div></div>';}).join("");
  const act=l19?KS:KS.filter(k=>c.out[k].L);let rows="",flags="";
  act.forEach(k=>{const x=c.out[k],q=sig(k,x,s),o=inp(id+"o_"+k,s.co[k]),u=inp(id+"u_"+k,s.cu[k]);
-  rows+='<tr><td class="l"><b>'+k+'</b></td>'+(l19?'<td>'+inp(id+"a_"+k,s.act[k],54)+'</td><td>'+inp(id+"l_"+k,s.ln[k],60)+'</td>':'<td>'+x.L+'</td>')+'<td>'+r(x.mu,1)+'±'+r(x.sd,1)+'</td><td class="'+(x.po==null?'':x.po>=.5?'ok':'no')+'">'+(x.po==null?'–':pct(x.po)+' / '+pct(1-x.po))+'</td>'+(l19?'':'<td>'+pct(x.hit)+'</td>')+'<td>'+o+'</td><td>'+u+'</td><td>'+(!q||q.edge==null?"–":(q.edge>=0?"+":"")+r(q.edge*100,1)+" pts")+'</td><td>'+(!q||q.ev==null?"–":(q.ev>=0?"+":"")+r(q.ev*100,1)+"%")+'</td><td class="l"><b>'+(q?q.t:"–")+'</b></td></tr>';
+  rows+='<tr><td class="l"><b>'+k+'</b></td>'+(l19?'<td>'+inp(id+"a_"+k,s.act[k],54)+'</td><td>'+inp(id+"l_"+k,s.ln[k],60)+'</td>':'<td>'+x.L+'</td>')+'<td>'+r(x.mu,1)+'±'+r(x.sd,1)+'</td><td class="'+(x.po==null?'':x.po>=.5?'ok':'no')+'">'+(x.po==null?'–':pct(x.po)+' / '+pct(1-x.po))+'</td><td><b>'+(x.pc==null?'–':pct(x.pc)+' / '+pct(1-x.pc))+'</b></td>'+(l19?'':'<td>'+pct(x.hit)+'</td>')+'<td>'+o+'</td><td>'+u+'</td><td>'+(!q||q.edge==null?"–":(q.edge>=0?"+":"")+r(q.edge*100,1)+" pts")+'</td><td>'+(!q||q.ev==null?"–":(q.ev>=0?"+":"")+r(q.ev*100,1)+"%")+'</td><td class="l"><b>'+(q?q.t:"–")+'</b></td></tr>';
   if(x.f.length)flags+='<div class="msg info" style="margin:6px 0"><b>'+k+':</b> '+x.f.map(esc).join(" · ")+'</div>';});
  if(lv){if(lv.bl<1)flags+='<div class="msg info" style="margin:6px 0">Posible garbage time (diferencia '+lv.diff+'): minutos restantes ×0.6.</div>';if(lv.pl===0&&lv.el>0.25)flags+='<div class="msg info" style="margin:6px 0">Sin minutos jugados con el partido avanzado: ¿lesión o DNP?</div>';}
  let combo="";if(c.out.PTS.L&&c.out["3PM"].L&&c.out.PTS.po!=null&&c.out["3PM"].po!=null){const pcb=c.out.PTS.po*c.out["3PM"].po,cq=s.co.COMBO,ev=cq>1?pcb*cq-1:null;
@@ -1219,12 +1223,12 @@ function card(R,id){const V=window.__V18,l19=id==="v19",au=minAuto(V.pl,R.min),k
   '<div class="lv"><span>Línea 1 · MPG proyectados (pre-partido)</span><b>'+r(s.min,1)+' min</b></div><div class="lv"><span>Línea 2 · Minutos jugados (boxscore)</span><b>'+inp("v19pl",s.played,70)+'</b></div>'+
   (lv?'<div class="lv"><span>Restan al partido → al jugador (proy.) → total</span><b>'+r(lv.remG,1)+' → '+r(lv.rem,1)+' → '+r(lv.tot,1)+' min</b></div>':'');}
  return'<div class="card" id="'+id+'card"><div class="sec" style="margin-top:0">'+(l19?'🔴 V19 EN VIVO':'🧠 Modelo v18')+' · '+esc(R.nom)+' vs '+esc(R.rival)+'</div>'+live+
- '<div class="leg"><span>Minutos auto: '+au.v+' ('+(au.ok?'últimos '+au.n+' partidos'+(au.out?', '+au.out+' outlier(s) &lt;75% de la mediana descartado(s)':''):'pocos datos, uso tu slider')+')</span></div>'+
+ '<div class="leg"><span>Calibración '+(l19?'V19':'V18')+': factor b='+C.b.toFixed(2)+' con '+C.n+' lecturas · '+(C.n<10?'muestra chica, casi sin ajuste':C.b<0.9?'encoge las probabilidades hacia 50%':'sin ajuste relevante')+'. La señal usa la probabilidad calibrada.</span></div><div class="leg"><span>Minutos auto: '+au.v+' ('+(au.ok?'últimos '+au.n+' partidos'+(au.out?', '+au.out+' outlier(s) &lt;75% de la mediana descartado(s)':''):'pocos datos, uso tu slider')+')</span></div>'+
  '<div class="row r3" style="margin-top:8px"><div><label>'+(l19?'MPG pre-partido':'Minutos')+'</label>'+inp(id+"min",s.min,70)+'</div><div><label>Ausentes (% uso)</label>'+inp(id+"adj",r(adjV,1),70)+'</div><div><label>&nbsp;</label><button class="chip" style="width:100%" onclick="vRe(\''+id+'\')">Recalcular</button></div></div>'+
  (chips?'<div style="margin:4px 0">'+chips+'</div>':'')+'<div class="leg" style="margin-bottom:8px"><span>Ausentes: se calcula solo con lo consultado en la pestaña Jugador ausente (sin consulta = 0). Editar el campo lo fija a mano.</span><button class="chip" onclick="vAu(\''+id+'\')">Minutos auto</button></div>'+
  '<div class="grid2">'+tiles+'</div><div class="leg" style="margin-top:8px"><span>Ritmo/defensa: '+(s.real?'boxscores reales ('+s.real.nT+' y '+s.real.nR+' partidos): pace '+r(s.real.pT,1)+' / '+r(s.real.pR,1)+' · DefRtg rival '+r(s.real.dR,1):'tablas fijas del código')+'</span></div>'+
  '<div style="display:flex;gap:6px;margin:6px 0"><button class="chip" onclick="vReal()">📡 Pace/DefRtg reales</button>'+(s.real?'<button class="chip" onclick="vNoReal()">↺ Tablas fijas</button>':'')+'</div>'+(l19?'':'<div class="foot" id="v18st" style="text-align:left"></div>')+
- (rows?'<div class="sec">'+(l19?'En vivo: acumulado, línea y cuotas (todo editable)':'Línea vs modelo (líneas de la pestaña Líneas)')+'</div><div class="scroll"><table><thead><tr><th class="l">Stat</th>'+(l19?'<th>Ya</th><th>Línea</th>':'<th>Línea</th>')+'<th>'+(l19?'Final':'Proy.')+'</th><th>Over / Under</th>'+(l19?'':'<th>Hist.</th>')+'<th>Cuota O</th><th>Cuota U</th><th>Ventaja</th><th>EV</th><th class="l">Señal</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+combo+flags+'<div class="foot" style="text-align:left">Over = llega a la línea (≥ techo). Ventaja = tu prob. − prob. implícita sin margen. Cuotas decimales. Registro y calibración: pestaña 📈 Registro.</div>':'<div class="msg info" style="margin-top:8px">Escribe líneas en la pestaña 📋 Líneas para ver probabilidades, cuotas y señal.</div>')+'</div>';}
+ (rows?'<div class="sec">'+(l19?'En vivo: acumulado, línea y cuotas (todo editable)':'Línea vs modelo (líneas de la pestaña Líneas)')+'</div><div class="scroll"><table><thead><tr><th class="l">Stat</th>'+(l19?'<th>Ya</th><th>Línea</th>':'<th>Línea</th>')+'<th>'+(l19?'Final':'Proy.')+'</th><th>Over / Under</th><th>Cal. O / U</th>'+(l19?'':'<th>Hist.</th>')+'<th>Cuota O</th><th>Cuota U</th><th>Ventaja</th><th>EV</th><th class="l">Señal</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+combo+flags+'<div class="foot" style="text-align:left">Over = llega a la línea (≥ techo). Ventaja = tu prob. − prob. implícita sin margen. Cuotas decimales. Registro y calibración: pestaña 📈 Registro.</div>':'<div class="msg info" style="margin-top:8px">Escribe líneas en la pestaña 📋 Líneas para ver probabilidades, cuotas y señal.</div>')+'</div>';}
 
 function repaint(id){const el=$$(id+"card");if(el&&window.__V18R)el.outerHTML=card(window.__V18R,id);}
 function readDom(id){const s=G(id),g=i=>{const e=$$(i);return e?parseFloat(String(e.value).replace(",",".")):NaN;},m=g(id+"min");if(m>0)s.min=m;const a=g(id+"adj");s.adjMan=isNaN(a)||Math.abs(a-s.adjAuto)<0.05?null:a;
@@ -1260,27 +1264,29 @@ window.vLive=async function(){readDom("v19");const R=window.__V18R,V=window.__V1
 
 /* --- calibración + pestaña Registro --- */
 function calibHtml(key){const A=LS(key)||[],L=A.filter(e=>e.res);let h='<div class="foot" style="text-align:left">'+A.length+' proyecciones guardadas · '+L.length+' con resultado · '+(A.length-L.length)+' pendientes.</div>';if(!L.length)return h;
- const bins=[[.5,.6],[.6,.7],[.7,.8],[.8,1.01]].map(b=>({b,n:0,p:0,h:0})),bi={};let br=0,nb=0;KS.forEach(k=>bi[k]={e:0,a:0,n:0});
+ const bins=[[.5,.6],[.6,.7],[.7,.8],[.8,1.01]].map(b=>({b,n:0,p:0,h:0})),bi={};let br=0,nb=0,brc=0,nc=0;KS.forEach(k=>bi[k]={e:0,a:0,n:0});
  L.forEach(e=>KS.forEach(k=>{const x=e.s[k],y=e.res[k];if(y==null)return;bi[k].e+=y-x.mu;bi[k].a+=Math.abs(y-x.mu);bi[k].n++;
-  if(x.L&&x.po!=null){const ov=x.po>=.5,pp=ov?x.po:1-x.po,hit=((y>=Math.ceil(x.L))===ov)?1:0;br+=(pp-hit)**2;nb++;const q=bins.find(q=>pp>=q.b[0]&&pp<q.b[1]);if(q){q.n++;q.p+=pp;q.h+=hit;}}}));
+  if(x.L&&x.po!=null){const ov=x.po>=.5,pp=ov?x.po:1-x.po,hit=((y>=Math.ceil(x.L))===ov)?1:0;br+=(pp-hit)**2;nb++;if(x.pc!=null){const oc=x.pc>=.5,pq=oc?x.pc:1-x.pc;brc+=(pq-(((y>=Math.ceil(x.L))===oc)?1:0))**2;nc++;}const q=bins.find(q=>pp>=q.b[0]&&pp<q.b[1]);if(q){q.n++;q.p+=pp;q.h+=hit;}}}));
  return h+'<div class="sec">Calibración: cuando el modelo dice X%, ¿acierta X%?</div><div class="scroll"><table><thead><tr><th class="l">Prob. modelo</th><th>n</th><th>Dijo</th><th>Acertó</th></tr></thead><tbody>'+
   bins.map(q=>q.n?'<tr><td class="l">'+Math.round(q.b[0]*100)+'–'+Math.min(100,Math.round(q.b[1]*100))+'%</td><td>'+q.n+'</td><td>'+pct(q.p/q.n)+'</td><td class="'+(Math.abs(q.h/q.n-q.p/q.n)<=0.08?'ok':'no')+'">'+pct(q.h/q.n)+'</td></tr>':'').join("")+'</tbody></table></div>'+
-  (nb?'<div class="foot" style="text-align:left">Brier '+(br/nb).toFixed(3)+' (0.250 = azar; menor es mejor) · n='+nb+'. Con n pequeño no concluyas nada.</div>':'')+
+  (nb?'<div class="foot" style="text-align:left">Brier '+(br/nb).toFixed(3)+' (0.250 = azar; menor es mejor) · n='+nb+(nc?' · Brier calibrado '+(brc/nc).toFixed(3)+' (n='+nc+', solo registros nuevos)':'')+'. Con n pequeño no concluyas nada.</div>':'')+
   '<div class="sec">Sesgo (real − proyectado)</div><div class="scroll"><table><thead><tr><th class="l">Stat</th><th>n</th><th>Sesgo</th><th>Error abs.</th></tr></thead><tbody>'+
   KS.map(k=>bi[k].n?'<tr><td class="l">'+k+'</td><td>'+bi[k].n+'</td><td>'+(bi[k].e/bi[k].n>=0?"+":"")+(bi[k].e/bi[k].n).toFixed(2)+'</td><td>'+(bi[k].a/bi[k].n).toFixed(2)+'</td></tr>':'').join("")+'</tbody></table></div>';}
 function tablaReg(A,key){return'<div class="scroll"><table><thead><tr><th class="l">Fecha</th><th>Rival</th>'+KS.map(k=>'<th>'+k+'</th>').join("")+'</tr></thead><tbody>'+A.map(e=>'<tr><td class="l">'+esc(e.fecha)+(e.lv?' <small>Q'+e.lv.per+'</small>':'')+'</td><td>'+esc(e.rival)+'</td>'+KS.map(k=>{const x=e.s[k],y=e.res?e.res[k]:null;
   const ov=x.po!=null&&x.po>=.5,pk=x.po==null?null:ov?x.po:1-x.po,mk=x.L&&x.po!=null&&y!=null?(((y>=Math.ceil(x.L))===ov)?' ✅':' ❌'):'';return'<td>'+r(x.mu,1)+(y!=null?'→'+y:'')+mk+(x.L?'<br><small style="color:var(--mut)">L'+x.L+' · modelo: '+(ov?'OVER ':'UNDER ')+pct(pk)+(y!=null?' · real: '+(y>=Math.ceil(x.L)?'Over':'Under'):'')+'</small>':'')+'</td>';}).join("")+'</tr>'+(e.res?'':'<tr><td colspan="6" class="l"><small style="color:var(--mut)">'+(e.nota?'⚠️ '+esc(e.nota)+' · ':'Pendiente · ')+'</small><button class="chip" onclick="vDel(\''+key+'\',\''+e.id+'\')">🗑 Borrar registro</button></td></tr>')).join("")+'</tbody></table></div>';}
 function sect(t,key){const A=LS(key)||[],g={};A.forEach(e=>(g[e.nom]=g[e.nom]||[]).push(e));
  return'<div class="card"><div class="sec" style="margin-top:0">'+t+'</div>'+calibHtml(key)+'<div class="sec">Registros por jugador</div>'+
-  (Object.keys(g).sort().map(n=>'<details class="iy" ontoggle="this.querySelector(\'.pm\').textContent=this.open?\'−\':\'＋\'"><summary><b class="pm">＋</b> '+esc(n)+' ('+g[n].length+')</summary><div class="iyl">'+tablaReg(g[n].slice().sort((a,b)=>b.fecha.localeCompare(a.fecha)),key)+'</div></details>').join("")||'<div class="foot" style="text-align:left">Sin registros todavía.</div>')+'</div>';}
+  (Object.keys(g).sort().map(n=>'<details class="iy" ontoggle="this.querySelector(\'.pm\').textContent=this.open?\'−\':\'＋\'"><summary><b class="pm">＋</b> '+esc(n)+' ('+g[n].length+') <button class="chip" style="float:right;padding:4px 10px" onclick="event.preventDefault();event.stopPropagation();vDelP(\''+key+'\',\''+encodeURIComponent(n)+'\')">🗑 Borrar</button></summary><div class="iyl">'+tablaReg(g[n].slice().sort((a,b)=>b.fecha.localeCompare(a.fecha)),key)+'</div></details>').join("")||'<div class="foot" style="text-align:left">Sin registros todavía.</div>')+'</div>';}
 function regTab(){const el=$$("viewReg");if(!el)return;const ops=[...el.querySelectorAll("details")].map(d=>d.open?1:0);
- el.innerHTML='<div class="card"><div class="sec" style="margin-top:0">📈 Registro y calibración</div><button class="chip" onclick="vRes()">Actualizar resultados</button><div class="foot" id="regSt" style="text-align:left">Los resultados se traen del historial del jugador cuando el partido ya terminó.</div></div>'+sect("🧠 Tarjeta V18","nba_v18_log")+sect("🔴 Tarjeta V19 en vivo","nba_v19_log");
+ el.innerHTML='<div class="card"><div class="sec" style="margin-top:0">📈 Registro y calibración</div><button class="chip" onclick="vRes()">Actualizar resultados</button><div class="foot" id="regSt" style="text-align:left">Los resultados se traen del historial del jugador cuando el partido ya terminó.</div></div>'+sect("🧠 Tarjeta V18","nba_v18_log")+sect("🔴 Tarjeta V19 en vivo","nba_v19_log")+(window.v20RegHtml?window.v20RegHtml():"");
  [...el.querySelectorAll("details")].forEach((d,i)=>{if(ops[i]){d.open=true;}});}
 window.vDel=(key,id)=>{SS(key,(LS(key)||[]).filter(x=>x.id!==id));regTab();};
+window.vDelP=(key,n)=>{n=decodeURIComponent(n);if(!confirm("¿Borrar todos los registros de "+n+"? También salen de la calibración."))return;SS(key,(LS(key)||[]).filter(x=>x.nom!==n));regTab();};
+window.regTab=regTab;
 window.vRes=async function(){const hoy=new Date().toISOString().slice(0,10),cache={},st=$$("regSt");let k=0;window.__nocache=true;
  try{for(const key of[L18,L19]){const A=LS(key)||[];for(const e of A){if(e.res||!e.fecha||e.fecha>hoy)continue;if(st)st.textContent="Consultando "+e.nom+"…";
   const d=cache[e.pid]||(cache[e.pid]=await getJSON(GAMELOG+e.pid+"/gamelog",{season:e.temp}).then(parseEff).catch(()=>null));if(!d)continue;
-  const g=d.rows.find(x=>x.rv===fixAb(e.rival)&&x.MIN>0&&Math.abs(Date.parse(x.fe)-Date.parse(e.fecha))<=1.5*864e5);if(g){e.res={PTS:g.PTS,REB:g.REB,AST:g.AST,"3PM":g.tpm,MIN:g.MIN};delete e.nota;k++;}else{const dd=d.rows.filter(x=>x.MIN>0&&Math.abs(Date.parse(x.fe)-Date.parse(e.fecha))<=1.5*864e5);e.nota=dd.length?"No hay partido vs "+e.rival+" en esa fecha; ese día jugó vs "+dd.map(x=>x.rv).join("/")+". Revisa rival y fecha.":"Aún no aparece en el historial (o no jugó).";}}SS(key,A);}}
+  const g=d.rows.find(x=>x.rv===fixAb(e.rival)&&x.MIN>0&&Math.abs(Date.parse(x.fe)-Date.parse(e.fecha))<=1.5*864e5);if(g){e.res={PTS:g.PTS,REB:g.REB,AST:g.AST,"3PM":g.tpm,MIN:g.MIN};delete e.nota;k++;}else{const dd=d.rows.filter(x=>x.MIN>0&&Math.abs(Date.parse(x.fe)-Date.parse(e.fecha))<=1.5*864e5);e.nota=dd.length?"No hay partido vs "+e.rival+" en esa fecha; ese día jugó vs "+dd.map(x=>x.rv).join("/")+". Revisa rival y fecha.":"Aún no aparece en el historial (o no jugó).";}}SS(key,A);}if(window.v20Resolve)k+=await window.v20Resolve();}
  finally{window.__nocache=false;}regTab();if($$("regSt"))$$("regSt").textContent=k+" resultado(s) nuevo(s).";};
 
 /* --- enganches --- */
@@ -1322,7 +1328,7 @@ function tsec(T,c){return'<div class="tn" style="color:'+c+';margin-top:12px">'+
   '<p style="margin:4px 0">Sin él ('+x.n+' partido'+(x.n===1?'':'s')+', con él '+x.nw+'): '+(x.n?'el equipo anota '+f1(x.obsF)+' y recibe '+f1(x.obsA)+'.':'no hay partidos sin él.')+' Estimación usada: anota <b>'+f1(x.estF)+'</b> / recibe <b>'+f1(x.estA)+'</b>'+(x.n<4?' (muestra chica: mezclada con regla genérica 30% de sus puntos y 6% de sus minutos)':'')+'.</p>'+
   (x.ben.length?'<p style="margin:4px 0"><b>Se benefician:</b> '+x.ben.map(b=>esc(b.nm)+' '+f1(b.dp)+' pts ('+f1(b.dm)+' min, '+b.n+' part.)').join(' · ')+'</p>':'<p style="margin:4px 0">Sin compañeros con muestra suficiente sin él.</p>')+'</div></details>').join(""):'<div class="foot" style="text-align:left">Sin lesionados clave reportados.</div>')+
   (T.otros>0?'<div class="foot" style="text-align:left">'+T.otros+' lesionado(s) más sin peso de titular/estrella (menos de 24 min y 14 pts).</div>':'')+'<div class="lv"><span>Efecto neto en el equipo: anota / recibe</span><b>'+f1(T.dFor)+' / '+f1(T.dAgn)+'</b></div>';}
-function html(R,A,B){const a0=R.prA.pts,b0=R.prB.pts,a1=a0+A.dFor+B.dAgn,b1=b0+B.dFor+A.dAgn,m0=a0-b0,m1=a1-b1,sh=m1-m0,t0=a0+b0,t1=a1+b1;
+function html(R,A,B){const kv=kV20(),k=kv.k,a0=R.prA.pts,b0=R.prB.pts,a1=a0+k*(A.dFor+B.dAgn),b1=b0+k*(B.dFor+A.dAgn),m0=a0-b0,m1=a1-b1,sh=m1-m0,t0=a0+b0,t1=a1+b1;
  const row=(n,c,o,x)=>'<tr><td class="l" style="color:'+c+'"><b>'+esc(n)+'</b></td><td>'+r(o,1)+'</td><td><b>'+r(x,1)+'</b></td><td class="'+(x-o>=0?'ok':'no')+'">'+f1(x-o)+'</td></tr>';
  const ln=[];if(Math.abs(sh)>=0.5)ln.push('El reporte mueve el margen <b>'+r(Math.abs(sh),1)+' pts</b> hacia '+esc(sh>0?R.nA:R.nB)+'.');else ln.push('El reporte casi no cambia el margen (±'+r(Math.abs(sh),1)+' pts).');
  if((m0>=0)!==(m1>=0))ln.push('<b>Cambia el favorito:</b> ahora '+esc(m1>=0?R.nA:R.nB)+' por '+r(Math.abs(m1),1)+'.');
@@ -1334,7 +1340,29 @@ function html(R,A,B){const a0=R.prA.pts,b0=R.prB.pts,a1=a0+A.dFor+B.dAgn,b1=b0+B
  '<div class="scroll" style="margin-top:8px"><table><thead><tr><th class="l">Equipo</th><th>Proy. original</th><th>Con lesionados</th><th>Cambio</th></tr></thead><tbody>'+row(R.nA,CA,a0,a1)+row(R.nB,CB,b0,b1)+'</tbody></table></div>'+
  '<div class="lv"><span>Margen: original → con lesionados</span><b>'+f1(m0)+' → '+f1(m1)+' ('+esc(R.nA)+')</b></div><div class="lv"><span>Total</span><b>'+r(t0,1)+' → '+r(t1,1)+'</b></div>'+
  '<div class="msg info" style="margin:8px 0">'+ln.map(x=>'• '+x).join('<br>')+'</div>'+tsec(A,CA)+tsec(B,CB)+
- '<div style="display:flex;gap:6px;margin-top:10px"><button class="chip" onclick="v20Go(true)">↻ Actualizar reporte</button></div><div class="foot" style="text-align:left">Titulares/estrellas = al menos 24 min o 14 pts por partido esta temporada. Ponderación por estado: Out 100%, Doubtful 75%, Questionable 50%, Day-to-day 40%. Efecto = mezcla de lo observado sin él con una regla genérica (peso 4 partidos).</div>';}
+ '<div style="display:flex;gap:6px;margin-top:10px"><button class="chip" onclick="v20Go(true)">↻ Actualizar reporte</button></div><div class="foot" style="text-align:left">Titulares/estrellas = al menos 24 min o 14 pts por partido esta temporada. Ponderación por estado: Out 100%, Doubtful 75%, Questionable 50%, Day-to-day 40%. Efecto = mezcla de lo observado sin él con una regla genérica (peso 4 partidos). Calibración V20: factor k='+k.toFixed(2)+' ('+kv.n+' partidos resueltos; 1 = efecto completo).</div>';}
+const L20="nba_v20_log",hoyCL=()=>new Date().toLocaleDateString("sv-SE",{timeZone:"America/Santiago"});
+function kV20(){const A=(LS(L20)||[]).filter(e=>e.res);let sx=0,sy=0;A.forEach(e=>{sx+=e.sh*e.sh;sy+=e.sh*((e.res.a-e.res.b)-(e.a0-e.b0));});const lam=25;return{k:Math.max(0,Math.min(1.5,(sy+lam)/(sx+lam))),n:A.length};}
+function reg20(R,A,B,ia,ib){const a0=R.prA.pts,b0=R.prB.pts,k=kV20().k,fa=A.dFor+B.dAgn,fb=B.dFor+A.dAgn,L=LS(L20)||[],id=ia+"|"+ib+"|"+hoyCL(),e=L.find(x=>x.id===id);if(e&&e.res)return;
+ const n={id,ia,ib,nA:R.nA,nB:R.nB,fecha:hoyCL(),ts:Date.now(),a0,b0,sh:fa-fb,k,a1:a0+k*fa,b1:b0+k*fb,inj:[...A.keys,...B.keys].map(x=>x.name+" ("+x.stl+")").slice(0,8)};if(e)Object.assign(e,n);else L.push(n);SS(L20,L.slice(-200));}
+window.v20Resolve=async function(){const L=LS(L20)||[],sc=c=>c&&c.score!==undefined?num(typeof c.score==="object"?c.score.displayValue:c.score):null;let k=0;
+ for(const e of L){if(e.res)continue;const ev=((await getJSON(BASE+"/teams/"+e.ia+"/schedule")).events||[]).filter(x=>{try{return x.competitions[0].status.type.completed;}catch(_){return false;}});
+  const lo=Date.parse(e.fecha)-1.5*864e5,hi=Date.parse(e.fecha)+9*864e5,g=ev.map(x=>{const cs=x.competitions[0].competitors||[],me=cs.find(c=>String(c.team.id)===String(e.ia)),op=cs.find(c=>String(c.team.id)===String(e.ib));return{t:Date.parse(x.date),a:sc(me),b:sc(op)};}).filter(x=>x.a!=null&&x.b!=null&&x.t>=lo&&x.t<=hi).sort((p,q)=>p.t-q.t)[0];
+  if(g){e.res={a:g.a,b:g.b};delete e.nota;k++;}else e.nota="Aún no hay partido terminado entre estos equipos (hasta 9 días desde la consulta).";}
+ SS(L20,L);return k;};
+window.vDel20=id=>{if(!confirm("¿Borrar este registro V20? También sale de la calibración."))return;SS(L20,(LS(L20)||[]).filter(x=>x.id!==id));if(window.regTab)window.regTab();};
+window.v20RegHtml=function(){const A=LS(L20)||[],Rs=A.filter(e=>e.res),kv=kV20(),rm=e=>e.res.a-e.res.b;
+ let h='<div class="card"><div class="sec" style="margin-top:0">🩺 Tarjeta V20 (Match)</div><div class="foot" style="text-align:left">'+A.length+' análisis guardados · '+Rs.length+' con resultado · '+(A.length-Rs.length)+' pendientes.</div>';
+ if(Rs.length){const m=f=>Rs.reduce((s,e)=>s+f(e),0)/Rs.length,m0=m(e=>Math.abs(rm(e)-(e.a0-e.b0))),m1=m(e=>Math.abs(rm(e)-(e.a1-e.b1))),t0=m(e=>Math.abs(e.res.a+e.res.b-(e.a0+e.b0))),t1=m(e=>Math.abs(e.res.a+e.res.b-(e.a1+e.b1))),
+  w0=Rs.filter(e=>(rm(e)>0)===(e.a0>e.b0)).length,w1=Rs.filter(e=>(rm(e)>0)===(e.a1>e.b1)).length,mj=Rs.filter(e=>Math.abs(rm(e)-(e.a1-e.b1))<Math.abs(rm(e)-(e.a0-e.b0))).length;
+  h+='<div class="sec">Calibración del efecto de lesionados</div><div class="scroll"><table><thead><tr><th class="l">Métrica</th><th>Original</th><th>Con lesionados</th></tr></thead><tbody><tr><td class="l">Error medio del margen (pts)</td><td>'+m0.toFixed(1)+'</td><td class="'+(m1<=m0?'ok':'no')+'">'+m1.toFixed(1)+'</td></tr><tr><td class="l">Error medio del total (pts)</td><td>'+t0.toFixed(1)+'</td><td class="'+(t1<=t0?'ok':'no')+'">'+t1.toFixed(1)+'</td></tr><tr><td class="l">Ganador acertado</td><td>'+w0+'/'+Rs.length+'</td><td class="'+(w1>=w0?'ok':'no')+'">'+w1+'/'+Rs.length+'</td></tr></tbody></table></div>'+
+  '<div class="foot" style="text-align:left">El ajuste por lesionados acercó el margen en '+mj+' de '+Rs.length+' partidos. Factor k = '+kv.k.toFixed(2)+' (1 = efecto completo, 0 = ignorar lesionados). Se recalcula solo al resolver partidos y ya se aplica en la tarjeta V20. Con n pequeño no concluyas nada.</div>';}
+ h+='<div class="sec">Registros por partido</div>';
+ h+=A.length?A.slice().sort((a,b)=>b.ts-a.ts).map(e=>'<details class="iy" ontoggle="'+tg+'"><summary><b class="pm">＋</b> '+esc(e.nA)+' vs '+esc(e.nB)+' <small style="color:var(--mut)">'+esc(e.fecha)+'</small> <button class="chip" style="float:right;padding:4px 10px" onclick="event.preventDefault();event.stopPropagation();vDel20(\''+e.id+'\')">🗑 Borrar</button></summary><div class="iyl">'+
+  '<p style="margin:4px 0">Original: '+esc(e.nA)+' '+r(e.a0,1)+' – '+r(e.b0,1)+' '+esc(e.nB)+' (margen '+f1(e.a0-e.b0)+')</p><p style="margin:4px 0">Con lesionados (k='+e.k.toFixed(2)+'): '+r(e.a1,1)+' – '+r(e.b1,1)+' (margen '+f1(e.a1-e.b1)+')</p>'+
+  (e.res?'<p style="margin:4px 0">Real: '+e.res.a+' – '+e.res.b+' (margen '+f1(rm(e))+', total '+(e.res.a+e.res.b)+') · '+(Math.abs(rm(e)-(e.a1-e.b1))<Math.abs(rm(e)-(e.a0-e.b0))?'✅ los lesionados acercaron la proyección':'❌ el original estuvo más cerca')+'</p>':'<p style="margin:4px 0">'+(e.nota?'⚠️ '+esc(e.nota):'Pendiente')+'</p>')+
+  (e.inj.length?'<p style="margin:4px 0">Lesionados considerados: '+e.inj.map(esc).join(' · ')+'</p>':'')+'</div></details>').join(""):'<div class="foot" style="text-align:left">Sin registros todavía. Se guardan al analizar un partido en Match.</div>';
+ return h+'</div>';};
 window.v20Go=async function(force){const R=window.__V20R,box=$$("v20card");if(!R||!box)return;const key=R.nA+"|"+R.nB,c=LS(CK);
  if(!force&&c&&c.key===key&&Date.now()-c.t<18e5){box.innerHTML=c.html;return;}
  let step="inicio";try{box.innerHTML='<div class="msg info">🩺 V20: cargando reporte de lesionados…</div>';const ia=tid(R.nA),ib=tid(R.nB);if(!ia||!ib)throw new Error("No se pudo identificar los equipos ("+R.nA+" / "+R.nB+").");
@@ -1342,7 +1370,7 @@ window.v20Go=async function(force){const R=window.__V20R,box=$$("v20card");if(!R
   const get=n=>{const v=inj[n]||inj[Object.keys(inj).find(k=>normalize(k)===normalize(n))];return Array.isArray(v)?v:[];};
   box.innerHTML='<div class="msg info">🩺 V20: analizando partidos de ambos equipos con y sin sus lesionados (se guardan en tu navegador)…</div>';
   step="partidos y boxscores";const[ea,eb]=await Promise.all([teamEvs(ia),teamEvs(ib)]);step="análisis";const A=analiza(ea,get(R.nA),R.nA),B=analiza(eb,get(R.nB),R.nB);step="armado de la tarjeta";const h=html(R,A,B);step="guardado";
-  regAus(A);regAus(B);SS("nba_abc_v1",ABC);SS(CK,{key,t:Date.now(),html:h});if($$("v20card"))$$("v20card").innerHTML=h;
+  reg20(R,A,B,ia,ib);regAus(A);regAus(B);SS("nba_abc_v1",ABC);SS(CK,{key,t:Date.now(),html:h});if($$("v20card"))$$("v20card").innerHTML=h;
  }catch(e){if($$("v20card"))$$("v20card").innerHTML='<div class="msg err">'+esc(String(e.message||e))+' <small>(paso: '+step+')</small></div><details class="iy"><summary>Detalle técnico</summary><div class="iyl" style="white-space:pre-wrap;font-size:11px">'+esc(String(e.stack||"").split("\n").slice(0,4).join("\n"))+'</div></details><button class="chip" onclick="v20Go(true)">Reintentar</button>';}};
 const om=window.renderMatch;
 window.renderMatch=function(R){om.apply(this,arguments);try{window.__V20R=R;$$("maOut").insertAdjacentHTML("beforeend",'<div class="card mx" id="v20card" style="border-left:4px solid #a855f7;margin-top:12px"></div>');window.v20Go(false);}catch(e){console.error("v20",e);}};
